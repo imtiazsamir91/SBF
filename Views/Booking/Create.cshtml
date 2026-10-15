@@ -1,0 +1,73 @@
+﻿@model EBS.Models.BookingRequestViewModel
+
+@{
+    ViewData["Title"] = "Book Service";
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Select Seats & Request Booking</h4>
+                </div>
+                <div class="card-body">
+
+                    @if (!ViewData.ModelState.IsValid)
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <div asp-validation-summary="All" class="text-danger mb-0"></div>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    }
+
+                    <form asp-action="Create" method="post">
+                        @Html.AntiForgeryToken()
+                        
+                        <input type="hidden" asp-for="ItemId" />
+
+                        <div class="mb-3">
+                            <label asp-for="TravelDate" class="form-label font-weight-bold">Travel / Event Date</label>
+                            <input asp-for="TravelDate" class="form-control" type="date" />
+                            <span asp-validation-for="TravelDate" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="SeatIdList" class="form-label font-weight-bold">Selected Seat IDs (Comma Separated)</label>
+                            <input asp-for="SeatIdList" class="form-control" placeholder="e.g. 101,102,103" />
+                            <small class="form-text text-muted">Enter up to 6 seat IDs separated by commas.</small>
+                            <span asp-validation-for="SeatIdList" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="SeatCount" class="form-label font-weight-bold">Total Seat Count</label>
+                            <input asp-for="SeatCount" class="form-control" type="number" min="1" max="6" value="1" />
+                            <span asp-validation-for="SeatCount" class="text-danger"></span>
+                        </div>
+
+                        <div class="form-check mb-4">
+                            <input class="form-check-input" type="checkbox" id="chkFullVenue" name="RequestFullVenue" value="1" />
+                            <label class="form-check-label text-danger font-weight-bold" for="chkFullVenue">
+                                Request Full Venue / Book All Seats (Seller permission required)
+                            </label>
+                        </div>
+
+                        <div class="alert alert-warning" role="alert">
+                            <strong>Note:</strong> Selected seats will be locked for <strong>10 minutes</strong> upon submission. Please complete payment within the time limit.
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">Lock Seats & Proceed to Payment</button>
+                            <a asp-action="Index" asp-controller="Home" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    </form>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
