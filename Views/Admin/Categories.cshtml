@@ -111,7 +111,7 @@
                                                             <form asp-action="EditCategory" method="post">
                                                                 @Html.AntiForgeryToken()
                                                                 <input type="hidden" name="categoryId" value="@item.CategoryId" />
-                                                                
+
                                                                 <div class="modal-header bg-primary text-white">
                                                                     <h5 class="modal-title fw-bold"><i class="fas fa-edit me-2"></i> Edit Category #@item.CategoryId</h5>
                                                                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>

@@ -1,0 +1,185 @@
+﻿@model EBS.Models.SellersPageViewModel
+
+@{
+    ViewData["Title"] = "Manage Sellers";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+}
+
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1">Manage Sellers</h2>
+            <p class="text-muted mb-0">Register sellers with address, category, capacity, and ratings.</p>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+            <i class="fas fa-check-circle me-2"></i> @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i> @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="row g-4">
+        <!-- Registration Form -->
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-success text-white py-3">
+                    <h5 class="m-0 fw-bold"><i class="fas fa-user-plus me-2"></i> Create New Seller</h5>
+                </div>
+                <div class="card-body">
+                    <form asp-action="CreateSeller" method="post">
+                        @Html.AntiForgeryToken()
+
+                        <h6 class="text-primary fw-bold mb-3"><i class="fas fa-id-card me-1"></i> Account Details</h6>
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Seller Name *</label>
+                                <input type="text" asp-for="NewSeller.FullName" class="form-control form-control-sm" required />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Phone Number *</label>
+                                <input type="text" asp-for="NewSeller.PhoneNumber" class="form-control form-control-sm" required />
+                            </div>
+                        </div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Email *</label>
+                                <input type="email" asp-for="NewSeller.Email" class="form-control form-control-sm" required />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Password *</label>
+                                <input type="password" asp-for="NewSeller.Password" class="form-control form-control-sm" required />
+                            </div>
+                        </div>
+
+                        <h6 class="text-primary fw-bold mb-3"><i class="fas fa-map-marker-alt me-1"></i> Address Details</h6>
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Area</label>
+                                <input type="text" asp-for="NewSeller.Area" class="form-control form-control-sm" placeholder="e.g. Uttara" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Thana</label>
+                                <input type="text" asp-for="NewSeller.Thana" class="form-control form-control-sm" placeholder="e.g. Uttara West" />
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">District</label>
+                                <input type="text" asp-for="NewSeller.District" class="form-control form-control-sm" placeholder="e.g. Dhaka" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Post Code</label>
+                                <input type="text" asp-for="NewSeller.PostCode" class="form-control form-control-sm" placeholder="e.g. 1230" />
+                            </div>
+                        </div>
+
+                        <h6 class="text-primary fw-bold mb-3"><i class="fas fa-concierge-bell me-1"></i> Service / Space Details</h6>
+                        <div class="mb-2">
+                            <label class="form-label small fw-semibold">Select Category *</label>
+                            <select asp-for="NewSeller.CategoryId" asp-items="Model.NewSeller.CategoriesDropdown" class="form-select form-select-sm" required>
+                                <option value="">-- Choose Category --</option>
+                            </select>
+                        </div>
+
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-8">
+                                <label class="form-label small fw-semibold">Service/Space Name *</label>
+                                <input type="text" asp-for="NewSeller.ItemName" class="form-control form-control-sm" placeholder="e.g. Grand Convention Hall" required />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-semibold">Rating *</label>
+                                <select asp-for="NewSeller.ServiceRating" class="form-select form-select-sm">
+                                    <option value="2 Star">2 Star</option>
+                                    <option value="3 Star">3 Star</option>
+                                    <option value="4 Star">4 Star</option>
+                                    <option value="5 Star">5 Star</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Capacity / Seat *</label>
+                                <input type="number" asp-for="NewSeller.Capacity" class="form-control form-control-sm" placeholder="e.g. 500" required />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Price (BDT) *</label>
+                                <input type="number" asp-for="NewSeller.BasePrice" class="form-control form-control-sm" placeholder="e.g. 25000" required />
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100 fw-bold mt-2">
+                            <i class="fas fa-check-circle me-1"></i> Register Seller
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sellers List Table -->
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h5 class="m-0 fw-bold text-dark"><i class="fas fa-users me-2 text-success"></i> Registered Sellers List</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Seller</th>
+                                    <th>Service & Category</th>
+                                    <th>Rating</th>
+                                    <th>Capacity</th>
+                                    <th>Price</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (Model.SellersList != null && Model.SellersList.Any())
+                                {
+                                    @foreach (var item in Model.SellersList)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <div class="fw-bold">@item.FullName</div>
+                                                <div class="small text-muted"><i class="fas fa-envelope me-1"></i>@item.Email</div>
+                                                <div class="small text-muted"><i class="fas fa-phone me-1"></i>@item.PhoneNumber</div>
+                                                <div class="small text-primary"><i class="fas fa-map-marker-alt me-1"></i>@item.Location</div>
+                                            </td>
+                                            <td>
+                                                <div class="fw-bold text-dark">@item.ItemName</div>
+                                                <span class="badge bg-secondary">@item.CategoryName</span>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-warning text-dark"><i class="fas fa-star me-1"></i>@item.ServiceRating</span>
+                                            </td>
+                                            <td class="fw-bold">@item.Capacity Persons</td>
+                                            <td class="fw-bold text-success">৳@item.BasePrice</td>
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr>
+                                        <td colspan="5" class="text-center py-4 text-muted">No sellers found in Oracle DB.</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
