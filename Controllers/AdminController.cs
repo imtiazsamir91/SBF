@@ -18,6 +18,10 @@ namespace EBS.Controllers
             _logger = logger;
         }
 
+        // ==========================================
+        // 1. DASHBOARD ACTIONS
+        // ==========================================
+
         [HttpGet]
         public async Task<IActionResult> Dashboard()
         {
@@ -30,7 +34,7 @@ namespace EBS.Controllers
                 {
                     await conn.OpenAsync();
 
-                    //  ( Admin=2, Seller=3, User=4)
+                    
                     string countQuery = @"SELECT 
                                             (SELECT COUNT(*) FROM IMTIAZ_SAMIR.AppUsers WHERE RoleId = 4) as Users, 
                                             (SELECT COUNT(*) FROM IMTIAZ_SAMIR.AppUsers WHERE RoleId = 3) as Sellers, 
@@ -52,6 +56,7 @@ namespace EBS.Controllers
                         }
                     }
 
+                   
                     string bookingQuery = @"SELECT b.BookingId, u.FullName, i.ItemName, b.TravelOrEventDate, b.Status, b.TotalAmount 
                                             FROM IMTIAZ_SAMIR.Bookings b
                                             JOIN IMTIAZ_SAMIR.AppUsers u ON b.UserId = u.UserId
@@ -124,6 +129,101 @@ namespace EBS.Controllers
             }
 
             return RedirectToAction(nameof(Dashboard));
+        }
+
+        // ==========================================
+        // 2. CATEGORY MANAGEMENT ACTIONS
+        // ==========================================
+
+        [HttpGet]
+        public async Task<IActionResult> Categories()
+        {
+            var model = new CategoriesPageViewModel();
+            string connString = _configuration.GetConnectionString("OracleDbContext")!;
+
+            try
+            {
+                using (var conn = new OracleConnection(connString))
+                {
+                    await conn.OpenAsync();
+                    string query = @"SELECT CategoryId, CategoryName, Description, CreatedAt 
+                                     FROM IMTIAZ_SAMIR.Categories 
+                                     ORDER BY CategoryId DESC";
+
+                    using (var cmd = new OracleCommand(query, conn))
+                    {
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                model.CategoriesList.Add(new CategoryViewModel
+                                {
+                                    CategoryId = reader.GetDecimal(0),
+                                    CategoryName = reader.GetString(1),
+                                    Description = reader.IsDBNull(2) ? "" : reader.GetString(2),
+                                    CreatedAt = reader.IsDBNull(3) ? DateTime.Now : reader.GetDateTime(3)
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("❌ Categories Fetch Error: {Message}", ex.Message);
+                TempData["ErrorMessage"] = "Failed to load categories: " + ex.Message;
+            }
+
+            return View(model);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateCategory(CategoriesPageViewModel inputModel)
+        {
+            var category = inputModel.NewCategory;
+
+            if (category == null || string.IsNullOrWhiteSpace(category.CategoryName))
+            {
+                TempData["ErrorMessage"] = "Category Name is required.";
+                return RedirectToAction(nameof(Categories));
+            }
+
+            string connString = _configuration.GetConnectionString("OracleDbContext")!;
+
+            try
+            {
+                using (var conn = new OracleConnection(connString))
+                {
+                    await conn.OpenAsync();
+
+                    
+                    string insertQuery = @"INSERT INTO IMTIAZ_SAMIR.Categories (CategoryName, Description) 
+                                           VALUES (:p_Name, :p_Desc)";
+
+                    using (var cmd = new OracleCommand(insertQuery, conn))
+                    {
+                        cmd.Parameters.Add("p_Name", OracleDbType.Varchar2).Value = category.CategoryName.Trim();
+                        cmd.Parameters.Add("p_Desc", OracleDbType.Varchar2).Value = (object?)category.Description ?? DBNull.Value;
+
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                }
+
+                TempData["SuccessMessage"] = $"Category '{category.CategoryName}' created successfully!";
+            }
+            catch (OracleException ex) when (ex.Number == 1) 
+            {
+                _logger.LogError("❌ Duplicate Category Name: {Name}", category.CategoryName);
+                TempData["ErrorMessage"] = $"A category named '{category.CategoryName}' already exists!";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("❌ Create Category Error: {Message}", ex.Message);
+                TempData["ErrorMessage"] = "Failed to create category: " + ex.Message;
+            }
+
+            return RedirectToAction(nameof(Categories));
         }
     }
 }
