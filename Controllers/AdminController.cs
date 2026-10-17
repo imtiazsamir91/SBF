@@ -34,7 +34,6 @@ namespace EBS.Controllers
                 {
                     await conn.OpenAsync();
 
-                    
                     string countQuery = @"SELECT 
                                             (SELECT COUNT(*) FROM IMTIAZ_SAMIR.AppUsers WHERE RoleId = 4) as Users, 
                                             (SELECT COUNT(*) FROM IMTIAZ_SAMIR.AppUsers WHERE RoleId = 3) as Sellers, 
@@ -56,7 +55,6 @@ namespace EBS.Controllers
                         }
                     }
 
-                   
                     string bookingQuery = @"SELECT b.BookingId, u.FullName, i.ItemName, b.TravelOrEventDate, b.Status, b.TotalAmount 
                                             FROM IMTIAZ_SAMIR.Bookings b
                                             JOIN IMTIAZ_SAMIR.AppUsers u ON b.UserId = u.UserId
@@ -197,7 +195,6 @@ namespace EBS.Controllers
                 {
                     await conn.OpenAsync();
 
-                    
                     string insertQuery = @"INSERT INTO IMTIAZ_SAMIR.Categories (CategoryName, Description) 
                                            VALUES (:p_Name, :p_Desc)";
 
@@ -212,7 +209,7 @@ namespace EBS.Controllers
 
                 TempData["SuccessMessage"] = $"Category '{category.CategoryName}' created successfully!";
             }
-            catch (OracleException ex) when (ex.Number == 1) 
+            catch (OracleException ex) when (ex.Number == 1)
             {
                 _logger.LogError("❌ Duplicate Category Name: {Name}", category.CategoryName);
                 TempData["ErrorMessage"] = $"A category named '{category.CategoryName}' already exists!";
@@ -221,6 +218,87 @@ namespace EBS.Controllers
             {
                 _logger.LogError("❌ Create Category Error: {Message}", ex.Message);
                 TempData["ErrorMessage"] = "Failed to create category: " + ex.Message;
+            }
+
+            return RedirectToAction(nameof(Categories));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditCategory(decimal categoryId, string categoryName, string description)
+        {
+            if (string.IsNullOrWhiteSpace(categoryName))
+            {
+                TempData["ErrorMessage"] = "Category Name is required.";
+                return RedirectToAction(nameof(Categories));
+            }
+
+            string connString = _configuration.GetConnectionString("OracleDbContext")!;
+
+            try
+            {
+                using (var conn = new OracleConnection(connString))
+                {
+                    await conn.OpenAsync();
+                    string updateQuery = @"UPDATE IMTIAZ_SAMIR.Categories 
+                                           SET CategoryName = :p_Name, Description = :p_Desc 
+                                           WHERE CategoryId = :p_Id";
+
+                    using (var cmd = new OracleCommand(updateQuery, conn))
+                    {
+                        cmd.Parameters.Add("p_Name", OracleDbType.Varchar2).Value = categoryName.Trim();
+                        cmd.Parameters.Add("p_Desc", OracleDbType.Varchar2).Value = (object?)description ?? DBNull.Value;
+                        cmd.Parameters.Add("p_Id", OracleDbType.Decimal).Value = categoryId;
+
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                }
+
+                TempData["SuccessMessage"] = "Category updated successfully!";
+            }
+            catch (OracleException ex) when (ex.Number == 1)
+            {
+                TempData["ErrorMessage"] = $"A category named '{categoryName}' already exists!";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("❌ Edit Category Error: {Message}", ex.Message);
+                TempData["ErrorMessage"] = "Failed to update category: " + ex.Message;
+            }
+
+            return RedirectToAction(nameof(Categories));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteCategory(decimal categoryId)
+        {
+            string connString = _configuration.GetConnectionString("OracleDbContext")!;
+
+            try
+            {
+                using (var conn = new OracleConnection(connString))
+                {
+                    await conn.OpenAsync();
+                    string deleteQuery = "DELETE FROM IMTIAZ_SAMIR.Categories WHERE CategoryId = :p_Id";
+
+                    using (var cmd = new OracleCommand(deleteQuery, conn))
+                    {
+                        cmd.Parameters.Add("p_Id", OracleDbType.Decimal).Value = categoryId;
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                }
+
+                TempData["SuccessMessage"] = "Category deleted successfully!";
+            }
+            catch (OracleException ex) when (ex.Number == 2292) // Foreign key constraint violation (Child records exist)
+            {
+                TempData["ErrorMessage"] = "Cannot delete this category because service items are linked to it.";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("❌ Delete Category Error: {Message}", ex.Message);
+                TempData["ErrorMessage"] = "Failed to delete category: " + ex.Message;
             }
 
             return RedirectToAction(nameof(Categories));
