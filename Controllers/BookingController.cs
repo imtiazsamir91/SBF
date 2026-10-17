@@ -36,7 +36,7 @@ namespace EBS.Controllers
                 return View(model);
             }
 
-            // User ID claims থেকে নেওয়া হবে (অথবা সেশন থেকে)
+           
             var userIdClaim = User.FindFirst("UserId")?.Value;
             if (string.IsNullOrEmpty(userIdClaim) || !decimal.TryParse(userIdClaim, out decimal userId))
             {
@@ -44,7 +44,8 @@ namespace EBS.Controllers
                 userId = 1;
             }
 
-            string connString = _configuration.GetConnectionString("OracleDb")!;
+           
+            string connString = _configuration.GetConnectionString("OracleDbContext")!;
 
             using (var conn = new OracleConnection(connString))
             {

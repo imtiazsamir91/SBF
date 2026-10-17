@@ -1,15 +1,16 @@
-using System.Diagnostics;
-using EBS.Models;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
+using Oracle.ManagedDataAccess.Client;
 
 namespace EBS.Controllers
 {
     public class HomeController : Controller
     {
+        private readonly IConfiguration _configuration;
         private readonly ILogger<HomeController> _logger;
 
-        public HomeController(ILogger<HomeController> logger)
+        public HomeController(IConfiguration configuration, ILogger<HomeController> logger)
         {
+            _configuration = configuration;
             _logger = logger;
         }
 
@@ -18,15 +19,36 @@ namespace EBS.Controllers
             return View();
         }
 
+        
+        [HttpGet("test-db")]
+        public async Task<IActionResult> TestDatabaseConnection()
+        {
+           
+            string connString = _configuration.GetConnectionString("OracleDbContext")!;
+
+            if (string.IsNullOrEmpty(connString))
+            {
+                return Content("❌ Error: 'OracleDbContext' connection string is missing or null!");
+            }
+
+            try
+            {
+                using (var conn = new OracleConnection(connString))
+                {
+                    await conn.OpenAsync();
+                    string dbVersion = conn.ServerVersion;
+                    return Content($"🎉 Database Connection Successful! Oracle Version: {dbVersion}");
+                }
+            }
+            catch (Exception ex)
+            {
+                return Content($"❌ Database Connection Failed: {ex.Message}");
+            }
+        }
+
         public IActionResult Privacy()
         {
             return View();
-        }
-
-        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-        public IActionResult Error()
-        {
-            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
     }
 }

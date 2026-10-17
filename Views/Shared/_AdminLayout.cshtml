@@ -1,0 +1,66 @@
+﻿
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - EBS Admin</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+        body { min-height: 100vh; background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .sidebar { height: 100vh; width: 260px; position: fixed; top: 0; left: 0; background-color: #1f2937; padding-top: 20px; z-index: 1000; color: #fff; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
+        .sidebar .brand-title { font-size: 1.25rem; font-weight: bold; padding: 0 20px 20px 20px; border-bottom: 1px solid #374151; }
+        .sidebar a { padding: 14px 20px; text-decoration: none; font-size: 15px; color: #9ca3af; display: block; transition: all 0.3s; }
+        .sidebar a:hover, .sidebar a.active { color: #fff; background-color: #374151; border-left: 4px solid #3b82f6; }
+        .sidebar .sidebar-heading { padding: 15px 20px 5px 20px; font-size: 11px; text-transform: uppercase; color: #6b7280; letter-spacing: 1px; }
+        .main-content { margin-left: 260px; padding: 30px; }
+        .navbar-top { background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-left: 260px; padding: 15px 30px; }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar / Drawer -->
+    <div class="sidebar">
+        <div class="brand-title text-white">
+            <i class="fas fa-shield-alt text-primary me-2"></i> EBS Admin Panel
+        </div>
+        <div class="sidebar-heading">Navigation</div>
+        <a href="@Url.Action("Dashboard", "Admin")" class="@(ViewContext.RouteData.Values["action"]?.ToString() == "Dashboard" ? "active" : "")">
+            <i class="fas fa-chart-line me-3"></i> Dashboard
+        </a>
+        <a href="@Url.Action("Categories", "Admin")" class="@(ViewContext.RouteData.Values["action"]?.ToString() == "Categories" ? "active" : "")">
+            <i class="fas fa-list-ul me-3"></i> Categories
+        </a>
+        <a href="@Url.Action("Sellers", "Admin")" class="@(ViewContext.RouteData.Values["action"]?.ToString() == "Sellers" ? "active" : "")">
+            <i class="fas fa-user-tie me-3"></i> Sellers
+        </a>
+
+        <div class="sidebar-heading mt-4">System</div>
+        <a href="@Url.Action("Index", "Home")" target="_blank">
+            <i class="fas fa-globe me-3"></i> Visit Website
+        </a>
+        <div class="px-3 mt-3">
+            <form asp-controller="Account" asp-action="Logout" method="post">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-outline-danger w-100 btn-sm"><i class="fas fa-sign-out-alt me-2"></i> Logout</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Top Navbar -->
+    <div class="navbar-top d-flex justify-content-between align-items-center">
+        <span class="fw-bold text-secondary"><i class="fas fa-user-circle me-1"></i> Admin Panel Session</span>
+        <span class="text-muted small">Oracle 11g Enterprise Connected</span>
+    </div>
+
+    <!-- Main Dynamic Content -->
+    <div class="main-content">
+        @RenderBody()
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
