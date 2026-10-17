@@ -1,0 +1,101 @@
+﻿@model EBS.Models.AdminDashboardViewModel
+
+@{
+    ViewData["Title"] = "Admin Dashboard";
+}
+
+<div class="container mt-4">
+    <h2 class="mb-4">Admin Control Center</h2>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <!-- Stat Cards -->
+    <div class="row text-white mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary p-3 shadow-sm">
+                <h5>Total Users</h5>
+                <h3>@Model.TotalUsers</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success p-3 shadow-sm">
+                <h5>Total Sellers</h5>
+                <h3>@Model.TotalSellers</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning p-3 shadow-sm">
+                <h5>Categories</h5>
+                <h3>@Model.TotalCategories</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger p-3 shadow-sm">
+                <h5>Total Bookings</h5>
+                <h3>@Model.TotalBookings</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Booking Management Table -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-dark text-white">
+            <h4 class="mb-0">All System Bookings & Lock Management</h4>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Customer</th>
+                            <th>Service Item</th>
+                            <th>Travel Date</th>
+                            <th>Status</th>
+                            <th>Amount</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var booking in Model.RecentBookings)
+                        {
+                            <tr>
+                                <td>@booking.BookingId</td>
+                                <td>@booking.CustomerName</td>
+                                <td>@booking.ItemName</td>
+                                <td>@booking.TravelDate.ToString("yyyy-MM-dd")</td>
+                                <td>
+                                    <span class="badge @(booking.Status == "CONFIRMED" ? "bg-success" : booking.Status == "LOCKED" ? "bg-warning text-dark" : "bg-secondary")">
+                                        @booking.Status
+                                    </span>
+                                </td>
+                                <td>৳@booking.TotalAmount</td>
+                                <td>
+                                    <form asp-action="UpdateBookingStatus" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="bookingId" value="@booking.BookingId" />
+                                        <input type="hidden" name="status" value="CONFIRMED" />
+                                        <button type="submit" class="btn btn-sm btn-outline-success" @(booking.Status == "CONFIRMED" ? "disabled" : "")>Confirm</button>
+                                    </form>
+
+                                    <form asp-action="UpdateBookingStatus" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="bookingId" value="@booking.BookingId" />
+                                        <input type="hidden" name="status" value="REJECTED" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" @(booking.Status == "REJECTED" ? "disabled" : "")>Reject</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
