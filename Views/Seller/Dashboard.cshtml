@@ -1,0 +1,172 @@
+﻿@model EBS.Models.SellerDashboardViewModel
+
+@{
+    ViewData["Title"] = "Seller Dashboard";
+    Layout = "~/Views/Shared/_SellerLayout.cshtml";
+}
+
+<!-- Welcome Banner -->
+<div class="card bg-white border-0 shadow-sm rounded-3 mb-4">
+    <div class="card-body p-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+        <div>
+            <h3 class="fw-bold text-dark mb-1"><i class="fas fa-store text-success me-2"></i> @Model.ItemName</h3>
+            <p class="text-muted mb-0">
+                Managed by <strong>@Model.SellerName</strong> | Category: <span class="badge bg-secondary">@Model.CategoryName</span>
+            </p>
+        </div>
+        <div>
+            <a href="#" class="btn btn-success fw-bold px-4 shadow-sm">
+                <i class="fas fa-plus-circle me-1"></i> Manage Seat Categories
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- TOP STATS CARDS -->
+<div class="row g-3 mb-4">
+    <div class="col-xl-3 col-md-6">
+        <div class="card stat-card bg-white shadow-sm p-3">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="text-muted small fw-bold">TOTAL CAPACITY SEATS</span>
+                    <h2 class="fw-bold text-dark mb-0 mt-1">@Model.TotalCapacitySeats</h2>
+                    <small class="text-muted"><i class="fas fa-layer-group me-1"></i> From @Model.TotalFloors Floors</small>
+                </div>
+                <div class="stat-icon bg-primary-subtle text-primary">
+                    <i class="fas fa-couch"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+        <div class="card stat-card bg-white shadow-sm p-3">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="text-muted small fw-bold">ALLOCATED SEATS</span>
+                    <h2 class="fw-bold text-success mb-0 mt-1">@Model.AllocatedCategorySeats</h2>
+                    <small class="text-success fw-semibold"><i class="fas fa-list me-1"></i> @Model.TotalCategoriesCount Categories</small>
+                </div>
+                <div class="stat-icon bg-success-subtle text-success">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+        <div class="card stat-card bg-white shadow-sm p-3">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="text-muted small fw-bold">UNALLOCATED SEATS</span>
+                    <h2 class="fw-bold text-warning mb-0 mt-1">@Model.RemainingUnallocatedSeats</h2>
+                    <small class="text-muted">Available for VIP/Regular</small>
+                </div>
+                <div class="stat-icon bg-warning-subtle text-warning">
+                    <i class="fas fa-hourglass-half"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+        <div class="card stat-card bg-white shadow-sm p-3">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="text-muted small fw-bold">PENDING REQUESTS</span>
+                    <h2 class="fw-bold text-danger mb-0 mt-1">@Model.PendingBookingRequests</h2>
+                    <small class="text-danger fw-semibold">Action Required</small>
+                </div>
+                <div class="stat-icon bg-danger-subtle text-danger">
+                    <i class="fas fa-bell"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- BREAKDOWN & QUICK ACTIONS -->
+<div class="row g-4">
+    <!-- Category Breakdown Table -->
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm rounded-3">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom-0">
+                <h5 class="fw-bold m-0 text-dark"><i class="fas fa-list-ol text-success me-2"></i> Seat Category Breakdown</h5>
+                <span class="badge bg-light text-dark border"><i class="fas fa-info-circle me-1"></i> Default: Regular</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Category Name</th>
+                                <th>Price / Seat</th>
+                                <th>Allocated Seats</th>
+                                <th>Share (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.SeatCategories != null && Model.SeatCategories.Any())
+                            {
+                                foreach (var cat in Model.SeatCategories)
+                                {
+                                    double percent = Model.TotalCapacitySeats > 0 ? ((double)cat.TotalSeats / Model.TotalCapacitySeats) * 100 : 0;
+                                    <tr>
+                                        <td class="fw-bold text-dark">
+                                            @cat.CategoryName
+                                            @if (cat.CategoryName.Equals("Regular", StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                <span class="badge bg-secondary ms-1">Default</span>
+                                            }
+                                        </td>
+                                        <td class="text-success fw-bold">৳@cat.PricePerSeat</td>
+                                        <td><span class="badge bg-info text-dark fs-6">@cat.TotalSeats Seats</span></td>
+                                        <td style="width: 30%;">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <div class="progress flex-grow-1" style="height: 8px;">
+                                                    <div class="progress-bar bg-success" style="width: @percent%"></div>
+                                                </div>
+                                                <small class="text-muted fw-semibold">@percent.ToString("0")%</small>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="4" class="text-center py-5 text-muted">
+                                        <i class="fas fa-chair fa-2x mb-2 text-secondary"></i>
+                                        <p class="mb-0">No seat categories configured yet.</p>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Quick Actions -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm rounded-3">
+            <div class="card-header bg-white py-3 border-bottom-0">
+                <h5 class="fw-bold m-0 text-dark"><i class="fas fa-rocket text-warning me-2"></i> Quick Management</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-3">
+                    <a href="#" class="btn btn-outline-success text-start fw-semibold py-2 shadow-sm">
+                        <i class="fas fa-plus-circle me-2"></i> Configure VIP/Business Seats
+                    </a>
+                    <a href="#" class="btn btn-outline-primary text-start fw-semibold py-2 shadow-sm">
+                        <i class="fas fa-layer-group me-2"></i> View Floor Breakdown
+                    </a>
+                    <button class="btn btn-outline-danger text-start fw-semibold py-2 shadow-sm" disabled>
+                        <i class="fas fa-tasks me-2"></i> Pending Booking Requests
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
