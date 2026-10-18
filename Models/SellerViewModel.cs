@@ -5,7 +5,6 @@ namespace EBS.Models
 {
     public class CreateSellerViewModel
     {
-        // Seller Personal / Account Info
         [Required(ErrorMessage = "Full Name is required")]
         public string FullName { get; set; } = string.Empty;
 
@@ -20,14 +19,12 @@ namespace EBS.Models
         [Required(ErrorMessage = "Phone Number is required")]
         public string PhoneNumber { get; set; } = string.Empty;
 
-        // Address Details
         public string? Address { get; set; }
         public string? Area { get; set; }
         public string? Thana { get; set; }
         public string? District { get; set; }
         public string? PostCode { get; set; }
 
-        // Service / Business Details
         [Required(ErrorMessage = "Please select a Category")]
         public decimal CategoryId { get; set; }
 
@@ -35,19 +32,27 @@ namespace EBS.Models
         public string ItemName { get; set; } = string.Empty;
 
         public string? Description { get; set; }
-
-        [Required(ErrorMessage = "Capacity/Seat Quantity is required")]
-        [Range(1, 100000, ErrorMessage = "Capacity must be at least 1")]
         public int Capacity { get; set; }
-
-        [Required(ErrorMessage = "Service Rating is required")]
-        public string ServiceRating { get; set; } = "3 Star"; // Default
-
-        [Required(ErrorMessage = "Base Price is required")]
+        public string ServiceRating { get; set; } = "3 Star";
         public decimal BasePrice { get; set; }
+        public string Status { get; set; } = "Active";
 
-        // Dropdown List Items
+        public bool HasMultipleFloors { get; set; }
+        public List<FloorInputDto> Floors { get; set; } = new();
         public List<SelectListItem> CategoriesDropdown { get; set; } = new();
+    }
+
+    public class FloorInputDto
+    {
+        public int FloorNumber { get; set; }
+        public string FloorName { get; set; } = string.Empty;
+        public List<SectionInputDto> Sections { get; set; } = new();
+    }
+
+    public class SectionInputDto
+    {
+        public string SectionName { get; set; } = string.Empty;
+        public int SeatCapacity { get; set; }
     }
 
     public class SellerListItemDto
@@ -60,8 +65,10 @@ namespace EBS.Models
         public string ItemName { get; set; } = string.Empty;
         public string CategoryName { get; set; } = string.Empty;
         public string ServiceRating { get; set; } = string.Empty;
-        public int Capacity { get; set; }
         public decimal BasePrice { get; set; }
+        public string Status { get; set; } = "Active";
+        public int TotalFloors { get; set; }
+        public int TotalSeats { get; set; }
     }
 
     public class SellersPageViewModel

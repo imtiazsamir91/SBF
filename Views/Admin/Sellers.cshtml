@@ -3,13 +3,23 @@
 @{
     ViewData["Title"] = "Manage Sellers";
     Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    string activeTab = TempData["ActiveTab"]?.ToString() ?? "register";
 }
 
-<div class="container-fluid px-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+<div class="container-fluid px-4 py-3">
+    <!-- Header & Tabs -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
         <div>
-            <h2 class="fw-bold text-dark mb-1">Manage Sellers</h2>
-            <p class="text-muted mb-0">Register sellers with address, category, capacity, and ratings.</p>
+            <h2 class="fw-bold text-dark mb-1"><i class="fas fa-store-alt text-success me-2"></i> Manage Sellers</h2>
+            <p class="text-muted mb-0">Register sellers, dynamic floor configurations, update info, and multi-field filtering.</p>
+        </div>
+        <div class="btn-group shadow-sm" role="group">
+            <button type="button" class="btn btn-outline-success @(activeTab == "register" ? "active" : "")" id="tabRegisterBtn" onclick="switchTab('register')">
+                <i class="fas fa-user-plus me-1"></i> Register Seller
+            </button>
+            <button type="button" class="btn btn-outline-success @(activeTab == "list" ? "active" : "")" id="tabListBtn" onclick="switchTab('list')">
+                <i class="fas fa-users me-1"></i> All Sellers (@Model.SellersList.Count)
+            </button>
         </div>
     </div>
 
@@ -28,158 +38,598 @@
         </div>
     }
 
-    <div class="row g-4">
-        <!-- Registration Form -->
-        <div class="col-lg-5">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-success text-white py-3">
-                    <h5 class="m-0 fw-bold"><i class="fas fa-user-plus me-2"></i> Create New Seller</h5>
-                </div>
-                <div class="card-body">
-                    <form asp-action="CreateSeller" method="post">
-                        @Html.AntiForgeryToken()
-
-                        <h6 class="text-primary fw-bold mb-3"><i class="fas fa-id-card me-1"></i> Account Details</h6>
-                        <div class="row g-2 mb-2">
-                            <div class="col-md-6">
-                                <label class="form-label small fw-semibold">Seller Name *</label>
-                                <input type="text" asp-for="NewSeller.FullName" class="form-control form-control-sm" required />
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label small fw-semibold">Phone Number *</label>
-                                <input type="text" asp-for="NewSeller.PhoneNumber" class="form-control form-control-sm" required />
-                            </div>
-                        </div>
-
-                        <div class="row g-2 mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label small fw-semibold">Email *</label>
-                                <input type="email" asp-for="NewSeller.Email" class="form-control form-control-sm" required />
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label small fw-semibold">Password *</label>
-                                <input type="password" asp-for="NewSeller.Password" class="form-control form-control-sm" required />
-                            </div>
-                        </div>
-
-                        <h6 class="text-primary fw-bold mb-3"><i class="fas fa-map-marker-alt me-1"></i> Address Details</h6>
-                        <div class="row g-2 mb-2">
-                            <div class="col-md-6">
-                                <label class="form-label small fw-semibold">Area</label>
-                                <input type="text" asp-for="NewSeller.Area" class="form-control form-control-sm" placeholder="e.g. Uttara" />
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label small fw-semibold">Thana</label>
-                                <input type="text" asp-for="NewSeller.Thana" class="form-control form-control-sm" placeholder="e.g. Uttara West" />
-                            </div>
-                        </div>
-                        <div class="row g-2 mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label small fw-semibold">District</label>
-                                <input type="text" asp-for="NewSeller.District" class="form-control form-control-sm" placeholder="e.g. Dhaka" />
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label small fw-semibold">Post Code</label>
-                                <input type="text" asp-for="NewSeller.PostCode" class="form-control form-control-sm" placeholder="e.g. 1230" />
-                            </div>
-                        </div>
-
-                        <h6 class="text-primary fw-bold mb-3"><i class="fas fa-concierge-bell me-1"></i> Service / Space Details</h6>
-                        <div class="mb-2">
-                            <label class="form-label small fw-semibold">Select Category *</label>
-                            <select asp-for="NewSeller.CategoryId" asp-items="Model.NewSeller.CategoriesDropdown" class="form-select form-select-sm" required>
-                                <option value="">-- Choose Category --</option>
-                            </select>
-                        </div>
-
-                        <div class="row g-2 mb-2">
-                            <div class="col-md-8">
-                                <label class="form-label small fw-semibold">Service/Space Name *</label>
-                                <input type="text" asp-for="NewSeller.ItemName" class="form-control form-control-sm" placeholder="e.g. Grand Convention Hall" required />
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label small fw-semibold">Rating *</label>
-                                <select asp-for="NewSeller.ServiceRating" class="form-select form-select-sm">
-                                    <option value="2 Star">2 Star</option>
-                                    <option value="3 Star">3 Star</option>
-                                    <option value="4 Star">4 Star</option>
-                                    <option value="5 Star">5 Star</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="row g-2 mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label small fw-semibold">Capacity / Seat *</label>
-                                <input type="number" asp-for="NewSeller.Capacity" class="form-control form-control-sm" placeholder="e.g. 500" required />
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label small fw-semibold">Price (BDT) *</label>
-                                <input type="number" asp-for="NewSeller.BasePrice" class="form-control form-control-sm" placeholder="e.g. 25000" required />
-                            </div>
-                        </div>
-
-                        <button type="submit" class="btn btn-success w-100 fw-bold mt-2">
-                            <i class="fas fa-check-circle me-1"></i> Register Seller
-                        </button>
-                    </form>
-                </div>
-            </div>
+    <!-- TAB 1: REGISTRATION FORM -->
+    <div id="registerSection" class="card border-0 shadow-sm mb-4" style="display: @(activeTab == "register" ? "block" : "none");">
+        <div class="card-header bg-success text-white py-3">
+            <h5 class="m-0 fw-bold"><i class="fas fa-user-plus me-2"></i> Seller Registration & Floor Builder</h5>
         </div>
+        <div class="card-body p-4">
+            <form asp-action="CreateSeller" method="post" id="sellerForm">
+                @Html.AntiForgeryToken()
 
-        <!-- Sellers List Table -->
-        <div class="col-lg-7">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white py-3">
-                    <h5 class="m-0 fw-bold text-dark"><i class="fas fa-users me-2 text-success"></i> Registered Sellers List</h5>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Seller</th>
-                                    <th>Service & Category</th>
-                                    <th>Rating</th>
-                                    <th>Capacity</th>
-                                    <th>Price</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @if (Model.SellersList != null && Model.SellersList.Any())
-                                {
-                                    @foreach (var item in Model.SellersList)
-                                    {
-                                        <tr>
-                                            <td>
-                                                <div class="fw-bold">@item.FullName</div>
-                                                <div class="small text-muted"><i class="fas fa-envelope me-1"></i>@item.Email</div>
-                                                <div class="small text-muted"><i class="fas fa-phone me-1"></i>@item.PhoneNumber</div>
-                                                <div class="small text-primary"><i class="fas fa-map-marker-alt me-1"></i>@item.Location</div>
-                                            </td>
-                                            <td>
-                                                <div class="fw-bold text-dark">@item.ItemName</div>
-                                                <span class="badge bg-secondary">@item.CategoryName</span>
-                                            </td>
-                                            <td>
-                                                <span class="badge bg-warning text-dark"><i class="fas fa-star me-1"></i>@item.ServiceRating</span>
-                                            </td>
-                                            <td class="fw-bold">@item.Capacity Persons</td>
-                                            <td class="fw-bold text-success">৳@item.BasePrice</td>
-                                        </tr>
-                                    }
-                                }
-                                else
-                                {
-                                    <tr>
-                                        <td colspan="5" class="text-center py-4 text-muted">No sellers found in Oracle DB.</td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
+                <h6 class="text-success fw-bold mb-3 border-bottom pb-2"><i class="fas fa-id-card me-1"></i> Account Details</h6>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Full Name *</label>
+                        <input type="text" asp-for="NewSeller.FullName" class="form-control" placeholder="Seller Name" required />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Email Address *</label>
+                        <input type="email" asp-for="NewSeller.Email" class="form-control" placeholder="email@domain.com" required />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Password *</label>
+                        <input type="password" asp-for="NewSeller.Password" class="form-control" placeholder="Min 6 characters" required />
                     </div>
                 </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Phone Number *</label>
+                        <input type="text" asp-for="NewSeller.PhoneNumber" class="form-control" placeholder="017XXXXXXXX" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Account Status</label>
+                        <select asp-for="NewSeller.Status" class="form-select">
+                            <option value="Active" selected>Active</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+
+                <h6 class="text-success fw-bold mb-3 border-bottom pb-2"><i class="fas fa-map-marker-alt me-1"></i> Address / Endpoint Location</h6>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">Area (Endpoint)</label>
+                        <input type="text" asp-for="NewSeller.Area" class="form-control" placeholder="e.g. Demra" />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">Thana</label>
+                        <input type="text" asp-for="NewSeller.Thana" class="form-control" placeholder="e.g. Demra" />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">District</label>
+                        <input type="text" asp-for="NewSeller.District" class="form-control" placeholder="Dhaka" />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">Post Code</label>
+                        <input type="text" asp-for="NewSeller.PostCode" class="form-control" placeholder="1360" />
+                    </div>
+                </div>
+
+                <h6 class="text-success fw-bold mb-3 border-bottom pb-2"><i class="fas fa-building me-1"></i> Service & Floor Layout</h6>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Category *</label>
+                        <select asp-for="NewSeller.CategoryId" asp-items="Model.NewSeller.CategoriesDropdown" class="form-select" required>
+                            <option value="">-- Choose Category --</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Service/Hall Name *</label>
+                        <input type="text" asp-for="NewSeller.ItemName" class="form-control" placeholder="e.g. Dream Convention Hall" required />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Rating</label>
+                        <select asp-for="NewSeller.ServiceRating" class="form-select">
+                            <option value="2 Star">2 Star</option>
+                            <option value="3 Star">3 Star</option>
+                            <option value="4 Star">4 Star</option>
+                            <option value="5 Star" selected>5 Star</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Dynamic Multi-Floor Builder -->
+                <div class="mb-3">
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" asp-for="NewSeller.HasMultipleFloors" id="multiFloorCheck" onchange="toggleFloorBuilder()">
+                        <label class="form-check-label fw-bold text-dark" for="multiFloorCheck">
+                            Enable Dynamic Floor, Seats & Section Builder
+                        </label>
+                    </div>
+
+                    <div id="floorBuilderContainer" class="p-3 bg-light rounded border" style="display: none;">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold text-secondary m-0"><i class="fas fa-layer-group me-1"></i> Floors & Sections Breakdown</h6>
+                            <button type="button" class="btn btn-sm btn-primary" onclick="addFloor()">
+                                <i class="fas fa-plus me-1"></i> Add Floor
+                            </button>
+                        </div>
+                        <div id="floorsList"></div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-success btn-lg w-100 fw-bold shadow-sm mt-3">
+                    <i class="fas fa-check-circle me-1"></i> Save & Register Seller
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- TAB 2: SELLERS LIST TABLE WITH ADVANCED SEARCH, RATINGS & FLOORS FILTER -->
+    <div id="listSection" class="card border-0 shadow-sm" style="display: @(activeTab == "list" ? "block" : "none");">
+        <div class="card-header bg-white py-3">
+            <form method="get" asp-action="Sellers" class="row g-2 align-items-center">
+                <div class="col-md-3">
+                    <input type="text" name="searchKeyword" value="@ViewBag.SearchKeyword" class="form-control form-control-sm" placeholder="Search by name, email, phone, location..." />
+                </div>
+                <div class="col-md-3">
+                    <select name="categoryFilter" class="form-select form-select-sm" asp-items="Model.NewSeller.CategoriesDropdown">
+                        <option value="">-- All Categories --</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select name="ratingFilter" class="form-select form-select-sm">
+                        <option value="">-- All Ratings --</option>
+                        <option value="2 Star" selected="@(ViewBag.RatingFilter == "2 Star")">2 Star</option>
+                        <option value="3 Star" selected="@(ViewBag.RatingFilter == "3 Star")">3 Star</option>
+                        <option value="4 Star" selected="@(ViewBag.RatingFilter == "4 Star")">4 Star</option>
+                        <option value="5 Star" selected="@(ViewBag.RatingFilter == "5 Star")">5 Star</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select name="floorFilter" class="form-select form-select-sm">
+                        <option value="">-- Floors & Seats --</option>
+                        <option value="has_floors" selected="@(ViewBag.FloorFilter == "has_floors")">Has Multi-Floors</option>
+                        <option value="no_floors" selected="@(ViewBag.FloorFilter == "no_floors")">Single Floor / No Floors</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex gap-1">
+                    <button type="submit" class="btn btn-sm btn-success w-100"><i class="fas fa-filter me-1"></i> Filter</button>
+                    <a asp-action="Sellers" class="btn btn-sm btn-outline-secondary" title="Clear Filters"><i class="fas fa-sync"></i></a>
+                </div>
+            </form>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Seller Info</th>
+                            <th>Service & Category</th>
+                            <th>Rating</th>
+                            <th>Status</th>
+                            <th>Endpoint Location</th>
+                            <th>Floors & Seats</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.SellersList != null && Model.SellersList.Any())
+                        {
+                            foreach (var item in Model.SellersList)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold text-dark">@item.FullName</div>
+                                        <div class="small text-muted"><i class="fas fa-envelope me-1"></i>@item.Email</div>
+                                        <div class="small text-muted"><i class="fas fa-phone me-1"></i>@item.PhoneNumber</div>
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold text-dark">@item.ItemName</div>
+                                        <span class="badge bg-secondary">@item.CategoryName</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-warning text-dark"><i class="fas fa-star me-1"></i>@item.ServiceRating</span>
+                                    </td>
+                                    <td>
+                                        @if (item.Status == "Active")
+                                        {
+                                            <span class="badge bg-success">Active</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-danger">Inactive</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border"><i class="fas fa-map-marker-alt text-danger me-1"></i>@item.Location</span>
+                                    </td>
+                                    <td>
+                                        @if (item.TotalFloors > 0)
+                                        {
+                                            <span class="badge bg-info text-dark mb-1">Floors: @item.TotalFloors</span>
+                                            <div class="small text-muted">Total Seats: @item.TotalSeats</div>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-light text-dark">Single Floor</span>
+                                        }
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="btn-group" role="group">
+                                            <!-- UPDATE BUTTON -->
+                                            <button type="button" class="btn btn-sm btn-outline-primary"
+                                                    onclick="openFullUpdateModal('@item.UserId', '@item.FullName', '@item.Email', '@item.PhoneNumber', '@item.Location', '@item.ItemName', '@item.ServiceRating', '@item.Status')"
+                                                    title="Edit Seller">
+                                                <i class="fas fa-edit"></i> Edit
+                                            </button>
+
+                                            <!-- DELETE BUTTON -->
+                                            <form asp-action="DeleteSeller" method="post" onsubmit="return confirm('Are you sure you want to delete this seller?');" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="userId" value="@item.UserId" />
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete Seller">
+                                                    <i class="fas fa-trash-alt"></i> Delete
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="7" class="text-center py-5 text-muted">
+                                    <i class="fas fa-search fa-2x mb-2"></i>
+                                    <p class="mb-0">No sellers matched the filter criteria in Oracle DB.</p>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 </div>
+
+<!-- FULL EDIT / UPDATE MODAL WITH FLOOR BUILDER -->
+<div class="modal fade" id="updateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form asp-action="UpdateSeller" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-edit me-1"></i> Full Update Seller & Floors</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="updateUserId" name="userId" />
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Full Name</label>
+                            <input type="text" id="updateFullName" name="fullName" class="form-control" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Email Address</label>
+                            <input type="email" id="updateEmail" name="email" class="form-control" required />
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Phone Number</label>
+                            <input type="text" id="updatePhone" name="phoneNumber" class="form-control" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Account Status</label>
+                            <select id="updateStatus" name="status" class="form-select">
+                                <option value="Active">Active</option>
+                                <option value="Inactive">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold">Area</label>
+                            <input type="text" id="updateArea" name="area" class="form-control" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold">Thana</label>
+                            <input type="text" id="updateThana" name="thana" class="form-control" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold">District</label>
+                            <input type="text" id="updateDistrict" name="district" class="form-control" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold">Post Code</label>
+                            <input type="text" id="updatePostCode" name="postCode" class="form-control" />
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Service/Hall Name</label>
+                            <input type="text" id="updateItemName" name="itemName" class="form-control" required />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Category</label>
+                            <select id="updateCategoryId" name="categoryId" class="form-select" asp-items="Model.NewSeller.CategoriesDropdown" required></select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Service Rating</label>
+                            <select id="updateRating" name="serviceRating" class="form-select">
+                                <option value="2 Star">2 Star</option>
+                                <option value="3 Star">3 Star</option>
+                                <option value="4 Star">4 Star</option>
+                                <option value="5 Star">5 Star</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Floor & Sections Re-configuration in Modal -->
+                    <div class="mb-3 border-top pt-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="fw-bold text-secondary m-0"><i class="fas fa-layer-group me-1"></i> Update Floors & Sections</label>
+                            <button type="button" class="btn btn-sm btn-primary" onclick="addUpdateFloor()">
+                                <i class="fas fa-plus me-1"></i> Add Floor
+                            </button>
+                        </div>
+                        <div id="updateFloorsList" class="p-3 bg-light rounded border"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary fw-bold"><i class="fas fa-save me-1"></i> Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function switchTab(tab) {
+            var regSec = document.getElementById("registerSection");
+            var listSec = document.getElementById("listSection");
+            var regBtn = document.getElementById("tabRegisterBtn");
+            var listBtn = document.getElementById("tabListBtn");
+
+            if (tab === 'register') {
+                regSec.style.display = "block";
+                listSec.style.display = "none";
+                regBtn.classList.add("active");
+                listBtn.classList.remove("active");
+            } else {
+                regSec.style.display = "none";
+                listSec.style.display = "block";
+                listBtn.classList.add("active");
+                regBtn.classList.remove("active");
+            }
+        }
+
+        function openFullUpdateModal(id, name, email, phone, location, itemName, rating, status) {
+            document.getElementById("updateUserId").value = id;
+            document.getElementById("updateFullName").value = name;
+            document.getElementById("updateEmail").value = email;
+            document.getElementById("updatePhone").value = phone;
+            document.getElementById("updateItemName").value = itemName;
+            document.getElementById("updateRating").value = rating || '5 Star';
+            document.getElementById("updateStatus").value = status || 'Active';
+
+            let locParts = location ? location.split(',') : [];
+            document.getElementById("updateArea").value = locParts[0] ? locParts[0].trim() : '';
+            document.getElementById("updateThana").value = locParts[1] ? locParts[1].trim() : '';
+            document.getElementById("updateDistrict").value = locParts[2] ? locParts[2].trim() : '';
+
+            var container = document.getElementById("updateFloorsList");
+            container.innerHTML = '<div class="text-center py-2 text-muted"><i class="fas fa-spinner fa-spin"></i> Loading floors & sections...</div>';
+            updateFloorIndex = 0;
+
+            fetch(`/Admin/GetSellerFloors?userId=${id}`)
+                .then(response => response.json())
+                .then(data => {
+                    container.innerHTML = '';
+                    if (data && data.length > 0) {
+                        data.forEach(floor => {
+                            populateUpdateFloor(floor);
+                        });
+                    } else {
+                        addUpdateFloor();
+                    }
+                })
+                .catch(err => {
+                    console.error("Error fetching floors:", err);
+                    container.innerHTML = '';
+                    addUpdateFloor();
+                });
+
+            var updateModal = new bootstrap.Modal(document.getElementById('updateModal'));
+            updateModal.show();
+        }
+
+        // --- REGISTRATION FLOOR BUILDER ---
+        function toggleFloorBuilder() {
+            var chk = document.getElementById("multiFloorCheck");
+            var container = document.getElementById("floorBuilderContainer");
+            if (chk.checked) {
+                container.style.display = "block";
+                if (document.getElementById("floorsList").children.length === 0) {
+                    addFloor();
+                }
+            } else {
+                container.style.display = "none";
+            }
+        }
+
+        let floorIndex = 0;
+        function addFloor() {
+            let list = document.getElementById("floorsList");
+            let fHtml = `
+                <div class="card mb-3 border shadow-sm floor-card" data-floor="${floorIndex}">
+                    <div class="card-body bg-white">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="fw-bold text-primary m-0">Floor #${floorIndex + 1}</h6>
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('.floor-card').remove()">Remove Floor</button>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-6">
+                                <label class="small fw-semibold">Floor Number</label>
+                                <input type="number" name="NewSeller.Floors[${floorIndex}].FloorNumber" class="form-control form-control-sm" value="${floorIndex + 1}" required />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="small fw-semibold">Floor Name / Label</label>
+                                <input type="text" name="NewSeller.Floors[${floorIndex}].FloorName" class="form-control form-control-sm" placeholder="e.g. Ground Floor" required />
+                            </div>
+                        </div>
+                        <div class="sections-container mt-2 ps-3 border-start border-3 border-primary">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="small fw-bold text-secondary">Sections & Seats</span>
+                                <button type="button" class="btn btn-xs btn-outline-secondary" onclick="addSection(this, ${floorIndex})">+ Add Section</button>
+                            </div>
+                            <div class="sec-list"></div>
+                        </div>
+                    </div>
+                </div>`;
+            list.insertAdjacentHTML('beforeend', fHtml);
+            let newlyAddedFloorCard = list.lastElementChild;
+            let addSecBtn = newlyAddedFloorCard.querySelector('.sec-list').previousElementSibling.querySelector('button');
+            addSection(addSecBtn, floorIndex);
+            floorIndex++;
+        }
+
+        function addSection(btn, fIdx) {
+            let secList = btn.parentElement.nextElementSibling;
+            let sIdx = secList.children.length;
+            let sHtml = `
+                <div class="row g-2 align-items-center mb-2 section-row">
+                    <div class="col-md-6">
+                        <input type="text" name="NewSeller.Floors[${fIdx}].Sections[${sIdx}].SectionName" class="form-control form-control-sm" placeholder="Section Name (e.g. VIP Box)" required />
+                    </div>
+                    <div class="col-md-4">
+                        <input type="number" name="NewSeller.Floors[${fIdx}].Sections[${sIdx}].SeatCapacity" class="form-control form-control-sm" placeholder="Seat Capacity" min="1" required />
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-sm btn-danger w-100" onclick="this.closest('.section-row').remove()">X</button>
+                    </div>
+                </div>`;
+            secList.insertAdjacentHTML('beforeend', sHtml);
+        }
+
+        // --- UPDATE MODAL FLOOR BUILDER & AUTO-REINDEXING ---
+        let updateFloorIndex = 0;
+
+        function reindexUpdateFloors() {
+            let floorCards = document.querySelectorAll("#updateFloorsList .update-floor-card");
+            floorCards.forEach((card, fIdx) => {
+                card.setAttribute("data-floor", fIdx);
+                card.querySelector("h6").innerText = `Floor #${fIdx + 1}`;
+
+                let floorNumInput = card.querySelector("input[name*='.FloorNumber']");
+                if (floorNumInput) floorNumInput.name = `Floors[${fIdx}].FloorNumber`;
+
+                let floorNameInput = card.querySelector("input[name*='.FloorName']");
+                if (floorNameInput) floorNameInput.name = `Floors[${fIdx}].FloorName`;
+
+                let secBtn = card.querySelector(".sections-container button");
+                if (secBtn) secBtn.setAttribute("onclick", `addUpdateSectionByBtn(this, ${fIdx})`);
+
+                let secRows = card.querySelectorAll(".sec-list .section-row");
+                secRows.forEach((row, sIdx) => {
+                    let secNameInput = row.querySelector("input[name*='.SectionName']");
+                    if (secNameInput) secNameInput.name = `Floors[${fIdx}].Sections[${sIdx}].SectionName`;
+
+                    let seatCapInput = row.querySelector("input[name*='.SeatCapacity']");
+                    if (seatCapInput) seatCapInput.name = `Floors[${fIdx}].Sections[${sIdx}].SeatCapacity`;
+                });
+            });
+            updateFloorIndex = floorCards.length;
+        }
+
+        function addUpdateFloor() {
+            let list = document.getElementById("updateFloorsList");
+            let currentFIdx = list.children.length;
+            let fHtml = `
+                <div class="card mb-3 border shadow-sm update-floor-card" data-floor="${currentFIdx}">
+                    <div class="card-body bg-white">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="fw-bold text-primary m-0">Floor #${currentFIdx + 1}</h6>
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('.update-floor-card').remove(); reindexUpdateFloors();">Remove Floor</button>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-6">
+                                <label class="small fw-semibold">Floor Number</label>
+                                <input type="number" name="Floors[${currentFIdx}].FloorNumber" class="form-control form-control-sm" value="${currentFIdx + 1}" required />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="small fw-semibold">Floor Name / Label</label>
+                                <input type="text" name="Floors[${currentFIdx}].FloorName" class="form-control form-control-sm" placeholder="e.g. Ground Floor" required />
+                            </div>
+                        </div>
+                        <div class="sections-container mt-2 ps-3 border-start border-3 border-primary">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="small fw-bold text-secondary">Sections & Seats</span>
+                                <button type="button" class="btn btn-xs btn-outline-secondary" onclick="addUpdateSectionByBtn(this, ${currentFIdx})">+ Add Section</button>
+                            </div>
+                            <div class="sec-list"></div>
+                        </div>
+                    </div>
+                </div>`;
+            list.insertAdjacentHTML('beforeend', fHtml);
+            let newlyAddedCard = list.lastElementChild;
+            let addSecBtn = newlyAddedCard.querySelector('.sec-list').previousElementSibling.querySelector('button');
+            addUpdateSection(addSecBtn, currentFIdx);
+            reindexUpdateFloors();
+        }
+
+        function addUpdateSectionByBtn(btn, fIdx) {
+            addUpdateSection(btn, fIdx, '', '');
+        }
+
+        function addUpdateSection(btn, fIdx, secName = '', seatCap = '') {
+            let secList = btn.parentElement.nextElementSibling;
+            let sIdx = secList.children.length;
+            let sHtml = `
+                <div class="row g-2 align-items-center mb-2 section-row">
+                    <div class="col-md-6">
+                        <input type="text" name="Floors[${fIdx}].Sections[${sIdx}].SectionName" class="form-control form-control-sm" placeholder="Section Name (e.g. VIP Box)" value="${secName}" required />
+                    </div>
+                    <div class="col-md-4">
+                        <input type="number" name="Floors[${fIdx}].Sections[${sIdx}].SeatCapacity" class="form-control form-control-sm" placeholder="Seat Capacity" min="1" value="${seatCap}" required />
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-sm btn-danger w-100" onclick="this.closest('.section-row').remove(); reindexUpdateFloors();">X</button>
+                    </div>
+                </div>`;
+            secList.insertAdjacentHTML('beforeend', sHtml);
+        }
+
+        function populateUpdateFloor(floor) {
+            let list = document.getElementById("updateFloorsList");
+            let currentFIdx = list.children.length;
+            let fHtml = `
+                <div class="card mb-3 border shadow-sm update-floor-card" data-floor="${currentFIdx}">
+                    <div class="card-body bg-white">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="fw-bold text-primary m-0">Floor #${floor.floorNumber}</h6>
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('.update-floor-card').remove(); reindexUpdateFloors();">Remove Floor</button>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-6">
+                                <label class="small fw-semibold">Floor Number</label>
+                                <input type="number" name="Floors[${currentFIdx}].FloorNumber" class="form-control form-control-sm" value="${floor.floorNumber}" required />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="small fw-semibold">Floor Name / Label</label>
+                                <input type="text" name="Floors[${currentFIdx}].FloorName" class="form-control form-control-sm" value="${floor.floorName}" required />
+                            </div>
+                        </div>
+                        <div class="sections-container mt-2 ps-3 border-start border-3 border-primary">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="small fw-bold text-secondary">Sections & Seats</span>
+                                <button type="button" class="btn btn-xs btn-outline-secondary" onclick="addUpdateSectionByBtn(this, ${currentFIdx})">+ Add Section</button>
+                            </div>
+                            <div class="sec-list"></div>
+                        </div>
+                    </div>
+                </div>`;
+            list.insertAdjacentHTML('beforeend', fHtml);
+            let newlyAddedCard = list.lastElementChild;
+            let addSecBtn = newlyAddedCard.querySelector('.sec-list').previousElementSibling.querySelector('button');
+
+            if (floor.sections && floor.sections.length > 0) {
+                floor.sections.forEach(sec => {
+                    addUpdateSection(addSecBtn, currentFIdx, sec.sectionName, sec.seatCapacity);
+                });
+            } else {
+                addUpdateSection(addSecBtn, currentFIdx);
+            }
+            reindexUpdateFloors();
+        }
+    </script>
+}
