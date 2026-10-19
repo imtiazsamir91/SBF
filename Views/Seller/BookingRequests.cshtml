@@ -1,0 +1,129 @@
+﻿@model EBS.Models.BookingRequestsViewModel
+
+@{
+    ViewData["Title"] = "Customer Booking Requests";
+    Layout = "~/Views/Shared/_SellerLayout.cshtml";
+}
+
+<div class="container-fluid px-4 py-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1"><i class="fas fa-clipboard-list text-success me-2"></i> Customer Booking Requests</h2>
+            <p class="text-muted mb-0">Manage incoming booking requests, accept orders, or cancel invalid requests.</p>
+        </div>
+        <a asp-action="Dashboard" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+        </a>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+            <i class="fas fa-check-circle me-2"></i> @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i> @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <!-- Booking Requests Table Card -->
+    <div class="card border-0 shadow-sm rounded-3">
+        <div class="card-header bg-white py-3">
+            <h5 class="fw-bold m-0 text-dark"><i class="fas fa-tasks me-2 text-primary"></i> Incoming Requests List</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Booking ID</th>
+                            <th>Customer Details</th>
+                            <th>Event / Travel Date</th>
+                            <th>Total Amount</th>
+                            <th>Status</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Requests != null && Model.Requests.Any())
+                        {
+                            foreach (var item in Model.Requests)
+                            {
+                                <tr>
+                                    <td class="fw-bold text-primary">#@item.BookingId</td>
+                                    <td>
+                                        <div class="fw-bold text-dark">@item.CustomerName</div>
+                                        <div class="small text-muted"><i class="fas fa-envelope me-1"></i>@item.CustomerEmail</div>
+                                        <div class="small text-muted"><i class="fas fa-phone me-1"></i>@item.CustomerPhone</div>
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold text-dark"><i class="far fa-calendar-alt text-success me-1"></i>@item.TravelOrEventDate.ToString("dd MMM yyyy")</div>
+                                    </td>
+                                    <td class="fw-bold text-success">৳@item.TotalAmount</td>
+                                    <td>
+                                        @if (item.Status == "LOCKED")
+                                        {
+                                            <span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>Pending Approval</span>
+                                        }
+                                        else if (item.Status == "CONFIRMED")
+                                        {
+                                            <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Confirmed</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-danger"><i class="fas fa-times-circle me-1"></i>Cancelled</span>
+                                        }
+                                    </td>
+                                    <td class="text-center">
+                                        @if (item.Status == "LOCKED")
+                                        {
+                                            <div class="d-flex justify-content-center gap-2">
+                                                <!-- Accept Form -->
+                                                <form asp-action="ProcessRequest" method="post" class="d-inline">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="bookingId" value="@item.BookingId" />
+                                                    <input type="hidden" name="actionType" value="ACCEPT" />
+                                                    <button type="submit" class="btn btn-sm btn-success fw-bold px-3" title="Accept Booking">
+                                                        <i class="fas fa-check me-1"></i> Accept
+                                                    </button>
+                                                </form>
+
+                                                <!-- Reject Form -->
+                                                <form asp-action="ProcessRequest" method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to reject this request?');">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="bookingId" value="@item.BookingId" />
+                                                    <input type="hidden" name="actionType" value="REJECT" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger fw-bold px-3" title="Reject Booking">
+                                                        <i class="fas fa-times me-1"></i> Reject
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small">No Action Required</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="6" class="text-center py-5 text-muted">
+                                    <i class="fas fa-inbox fa-3x mb-3 text-secondary"></i>
+                                    <p class="mb-0 fs-6 fw-semibold">No booking requests found.</p>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
