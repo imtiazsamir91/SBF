@@ -1,0 +1,138 @@
+﻿@model EBS.Models.SeatCategoryManagementViewModel
+
+@{
+    ViewData["Title"] = "Manage Seat Categories";
+    Layout = "~/Views/Shared/_SellerLayout.cshtml";
+}
+
+<div class="container-fluid px-4 py-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1"><i class="fas fa-chair text-success me-2"></i> Seat Categories & Allocation</h2>
+            <p class="text-muted mb-0">Define category-wise seats (VIP, Regular, Business) within your venue capacity.</p>
+        </div>
+        <a asp-action="Dashboard" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+        </a>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+            <i class="fas fa-check-circle me-2"></i> @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i> @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <!-- Capacity Info Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm bg-primary text-white p-3">
+                <div class="text-white-50 small fw-bold">TOTAL VENUE CAPACITY</div>
+                <h2 class="fw-bold mb-0 mt-1">@Model.TotalCapacitySeats</h2>
+                <small>From dynamic floor sections</small>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm bg-success text-white p-3">
+                <div class="text-white-50 small fw-bold">TOTAL ALLOCATED SEATS</div>
+                <h2 class="fw-bold mb-0 mt-1">@Model.AllocatedSeatsCount</h2>
+                <small>Assigned across categories</small>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm bg-warning text-dark p-3">
+                <div class="text-dark small fw-bold">REMAINING UNASSIGNED SEATS</div>
+                <h2 class="fw-bold mb-0 mt-1">@Model.RemainingSeats</h2>
+                <small>Available to allocate</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Add / Edit Form -->
+        <div class="col-md-5">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-success text-white py-3">
+                    <h5 class="fw-bold m-0"><i class="fas fa-plus-circle me-2"></i> Allocate Seat Category</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form asp-action="SaveSeatCategory" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="sellerCatId" value="@Model.SellerCatId" />
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold small">Category Name *</label>
+                            <input type="text" name="categoryName" class="form-control" placeholder="e.g. VIP, Regular, Business" required />
+                            <div class="form-text small">Default category is 'Regular'.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold small">Price Per Seat (৳) *</label>
+                            <input type="number" step="0.01" name="pricePerSeat" class="form-control" placeholder="500" required />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold small">Number of Seats *</label>
+                            <input type="number" name="totalSeats" class="form-control" max="@(Model.RemainingSeats + Model.TotalCapacitySeats)" placeholder="Max remaining seats" required />
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100 fw-bold shadow-sm py-2">
+                            <i class="fas fa-save me-1"></i> Save & Allocate Seats
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Existing Categories Table -->
+        <div class="col-md-7">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h5 class="fw-bold m-0 text-dark"><i class="fas fa-list me-2"></i> Configured Categories</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Category</th>
+                                    <th>Price</th>
+                                    <th>Seats</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (Model.ExistingCategories.Any())
+                                {
+                                    foreach (var cat in Model.ExistingCategories)
+                                    {
+                                        <tr>
+                                            <td class="fw-bold text-dark">@cat.CategoryName</td>
+                                            <td class="text-success fw-bold">৳@cat.PricePerSeat</td>
+                                            <td><span class="badge bg-info text-dark">@cat.TotalSeats Seats</span></td>
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr>
+                                        <td colspan="3" class="text-center py-4 text-muted">
+                                            No categories allocated yet.
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
