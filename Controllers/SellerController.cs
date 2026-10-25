@@ -256,109 +256,170 @@ namespace EBS.Controllers
                 {
                     await conn.OpenAsync();
 
-                    // ১. প্রসিডিউর দিয়ে ক্যাটাগরি অ্যালোকেট করা
-                    using (var cmd = new OracleCommand("IMTIAZ_SAMIR.BookingEnginePkg.allocate_seat_category", conn))
+                    using (var transaction = conn.BeginTransaction())
                     {
-                        cmd.CommandType = CommandType.StoredProcedure;
-                        cmd.BindByName = true;
-
-                        cmd.Parameters.Add("p_SellerCatId", OracleDbType.Decimal).Value = sellerCatId;
-                        cmd.Parameters.Add("p_CategoryName", OracleDbType.Varchar2).Value = string.IsNullOrWhiteSpace(categoryName) ? "Regular" : categoryName.Trim();
-                        cmd.Parameters.Add("p_PricePerSeat", OracleDbType.Decimal).Value = pricePerSeat;
-                        cmd.Parameters.Add("p_AllocatedSeats", OracleDbType.Decimal).Value = totalSeats;
-
-                        var statusParam = new OracleParameter("p_Status", OracleDbType.Varchar2, 50);
-                        statusParam.Direction = ParameterDirection.Output;
-                        cmd.Parameters.Add(statusParam);
-
-                        await cmd.ExecuteNonQueryAsync();
-
-                        if (statusParam.Value.ToString() == "EXCEEDED_LIMIT")
+                        try
                         {
-                            TempData["ErrorMessage"] = "Failed! Allocated seats exceed total capacity limit.";
-                            return RedirectToAction(nameof(ManageSeatCategories));
-                        }
-                    }
+                            // ১. ক্যাপাসিটি চেক করা
+                            string checkCapQuery = @"SELECT NVL(SUM(fs.SeatCapacity), 0) 
+                                             FROM IMTIAZ_SAMIR.ItemFloors f 
+                                             JOIN IMTIAZ_SAMIR.FloorSections fs ON f.FloorId = fs.FloorId 
+                                             WHERE f.SellerCatId = :p_SellerCatId";
 
-                    // ২. ফ্লোর ও সেকশন নাম বের করা (যেমন: Section A, Floor 2 -> A2)
-                    string floorName = "1";
-                    string sectionName = "A";
-                    string floorSecQuery = @"SELECT f.FloorName, fs.SectionName 
-                                     FROM IMTIAZ_SAMIR.ItemFloors f
-                                     JOIN IMTIAZ_SAMIR.FloorSections fs ON f.FloorId = fs.FloorId
-                                     WHERE f.SellerCatId = :p_SellerCatId AND ROWNUM = 1";
-
-                    using (var fsCmd = new OracleCommand(floorSecQuery, conn))
-                    {
-                        fsCmd.BindByName = true;
-                        fsCmd.Parameters.Add("p_SellerCatId", OracleDbType.Decimal).Value = sellerCatId;
-                        using (var fsReader = await fsCmd.ExecuteReaderAsync())
-                        {
-                            if (await fsReader.ReadAsync())
+                            decimal totalCapacity = 0;
+                            using (var capCmd = new OracleCommand(checkCapQuery, conn))
                             {
-                                floorName = fsReader.IsDBNull(0) ? "1" : fsReader.GetString(0);
-                                sectionName = fsReader.IsDBNull(1) ? "A" : fsReader.GetString(1);
+                                capCmd.Transaction = transaction;
+                                capCmd.BindByName = true;
+                                capCmd.Parameters.Add("p_SellerCatId", OracleDbType.Decimal).Value = sellerCatId;
+                                var res = await capCmd.ExecuteScalarAsync();
+                                if (res != null && res != DBNull.Value) totalCapacity = Convert.ToDecimal(res);
                             }
-                        }
-                    }
 
-                    string cleanSection = string.IsNullOrWhiteSpace(sectionName) ? "A" : sectionName.Trim().Substring(0, 1).ToUpper();
-                    var match = System.Text.RegularExpressions.Regex.Match(floorName ?? "", @"\d+");
-                    string cleanFloor = match.Success ? match.Value : "1";
+                            string checkAllocQuery = @"SELECT NVL(SUM(TotalSeats), 0) FROM IMTIAZ_SAMIR.SeatCategories WHERE SellerCatId = :p_SellerCatId AND LOWER(CategoryName) != LOWER(:p_CatName)";
+                            decimal allocatedSoFar = 0;
+                            using (var allocCmd = new OracleCommand(checkAllocQuery, conn))
+                            {
+                                allocCmd.Transaction = transaction;
+                                allocCmd.BindByName = true;
+                                allocCmd.Parameters.Add("p_SellerCatId", OracleDbType.Decimal).Value = sellerCatId;
+                                allocCmd.Parameters.Add("p_CatName", OracleDbType.Varchar2).Value = string.IsNullOrWhiteSpace(categoryName) ? "Regular" : categoryName.Trim();
+                                var res = await allocCmd.ExecuteScalarAsync();
+                                if (res != null && res != DBNull.Value) allocatedSoFar = Convert.ToDecimal(res);
+                            }
 
-                    // ৩. নতুন তৈরি হওয়া ClassId (SeatCatId) বের করা
-                    decimal classId = 0;
-                    string getClassQuery = "SELECT MAX(SeatCatId) FROM IMTIAZ_SAMIR.SeatCategories WHERE SellerCatId = :p_ScId";
-                    using (var classCmd = new OracleCommand(getClassQuery, conn))
-                    {
-                        classCmd.BindByName = true;
-                        classCmd.Parameters.Add("p_ScId", OracleDbType.Decimal).Value = sellerCatId;
-                        var res = await classCmd.ExecuteScalarAsync();
-                        if (res != null && res != DBNull.Value) classId = Convert.ToDecimal(res);
-                    }
+                            if ((allocatedSoFar + totalSeats) > totalCapacity)
+                            {
+                                TempData["ErrorMessage"] = "Failed! Allocated seats exceed total capacity limit.";
+                                return RedirectToAction(nameof(ManageSeatCategories));
+                            }
 
-                    // ৪. বর্তমানে এই ভেন্যুতে অলরেডি কয়টি সিট জেনারেট হয়েছে তা বের করা (যাতে সিকোয়েন্স অনুযায়ী পরবর্তী সিট নাম্বার শুরু হতে পারে, যেমন: A20001 থেকে A20030)
-                    int existingSeatsCount = 0;
-                    string countSeatQuery = "SELECT COUNT(*) FROM IMTIAZ_SAMIR.SEATS WHERE ITEMID = :p_ItemId";
-                    using (var countCmd = new OracleCommand(countSeatQuery, conn))
-                    {
-                        countCmd.BindByName = true;
-                        countCmd.Parameters.Add("p_ItemId", OracleDbType.Decimal).Value = sellerCatId;
-                        var countRes = await countCmd.ExecuteScalarAsync();
-                        if (countRes != null && countRes != DBNull.Value) existingSeatsCount = Convert.ToInt32(countRes);
-                    }
+                            // ২. ক্যাটাগরি আগে থেকেই আছে কি না চেক করা বা নতুন ইনসার্ট করা
+                            decimal seatCatId = 0;
+                            string checkCatQuery = "SELECT SeatCatId FROM IMTIAZ_SAMIR.SeatCategories WHERE SellerCatId = :p_SellerCatId AND LOWER(CategoryName) = LOWER(:p_CatName)";
+                            using (var checkCmd = new OracleCommand(checkCatQuery, conn))
+                            {
+                                checkCmd.Transaction = transaction;
+                                checkCmd.BindByName = true;
+                                checkCmd.Parameters.Add("p_SellerCatId", OracleDbType.Decimal).Value = sellerCatId;
+                                checkCmd.Parameters.Add("p_CatName", OracleDbType.Varchar2).Value = string.IsNullOrWhiteSpace(categoryName) ? "Regular" : categoryName.Trim();
+                                var res = await checkCmd.ExecuteScalarAsync();
+                                if (res != null && res != DBNull.Value) seatCatId = Convert.ToDecimal(res);
+                            }
 
-                    int startSeatIndex = existingSeatsCount + 1;
-                    int endSeatIndex = existingSeatsCount + totalSeats;
+                            if (seatCatId > 0)
+                            {
+                                // আপডেট
+                                string updateCat = "UPDATE IMTIAZ_SAMIR.SeatCategories SET PricePerSeat = :p_Price, TotalSeats = :p_Seats WHERE SeatCatId = :p_Id";
+                                using (var upCmd = new OracleCommand(updateCat, conn))
+                                {
+                                    upCmd.Transaction = transaction;
+                                    upCmd.BindByName = true;
+                                    upCmd.Parameters.Add("p_Price", OracleDbType.Decimal).Value = pricePerSeat;
+                                    upCmd.Parameters.Add("p_Seats", OracleDbType.Decimal).Value = totalSeats;
+                                    upCmd.Parameters.Add("p_Id", OracleDbType.Decimal).Value = seatCatId;
+                                    await upCmd.ExecuteNonQueryAsync();
+                                }
 
-                    // ৫. SEATS টেবিলে নির্দিষ্ট রেঞ্জে সিট ইনসার্ট করা (যেমন: A20001 থেকে A20030)
-                    if (classId > 0 && totalSeats > 0)
-                    {
-                        using (var transaction = conn.BeginTransaction())
-                        {
+                                // আগের সিটগুলো মুছে ফেলা
+                                string delSeats = "DELETE FROM IMTIAZ_SAMIR.SEATS WHERE CLASSID = :p_Id";
+                                using (var delCmd = new OracleCommand(delSeats, conn))
+                                {
+                                    delCmd.Transaction = transaction;
+                                    delCmd.BindByName = true;
+                                    delCmd.Parameters.Add("p_Id", OracleDbType.Decimal).Value = seatCatId;
+                                    await delCmd.ExecuteNonQueryAsync();
+                                }
+                            }
+                            else
+                            {
+                                // নতুন ইনসার্ট এবং সঠিক আইডি রিট্রিভ করা
+                                string insertCat = @"INSERT INTO IMTIAZ_SAMIR.SeatCategories (SeatCatId, SellerCatId, CategoryName, PricePerSeat, TotalSeats) 
+                                             VALUES (IMTIAZ_SAMIR.seq_seat_categories.NEXTVAL, :p_SellerCatId, :p_Name, :p_Price, :p_Seats) 
+                                             RETURNING SeatCatId INTO :p_NewId";
+
+                                using (var insCmd = new OracleCommand(insertCat, conn))
+                                {
+                                    insCmd.Transaction = transaction;
+                                    insCmd.BindByName = true;
+                                    insCmd.Parameters.Add("p_SellerCatId", OracleDbType.Decimal).Value = sellerCatId;
+                                    insCmd.Parameters.Add("p_Name", OracleDbType.Varchar2).Value = string.IsNullOrWhiteSpace(categoryName) ? "Regular" : categoryName.Trim();
+                                    insCmd.Parameters.Add("p_Price", OracleDbType.Decimal).Value = pricePerSeat;
+                                    insCmd.Parameters.Add("p_Seats", OracleDbType.Decimal).Value = totalSeats;
+
+                                    var outId = new OracleParameter("p_NewId", OracleDbType.Decimal, ParameterDirection.Output);
+                                    insCmd.Parameters.Add(outId);
+
+                                    await insCmd.ExecuteNonQueryAsync();
+                                    seatCatId = Convert.ToDecimal(outId.Value.ToString());
+                                }
+                            }
+
+                            // ৩. ফ্লোর ও সেকশন নাম বের করা
+                            string floorName = "1";
+                            string sectionName = "A";
+                            string floorSecQuery = @"SELECT f.FloorName, fs.SectionName 
+                                             FROM IMTIAZ_SAMIR.ItemFloors f
+                                             JOIN IMTIAZ_SAMIR.FloorSections fs ON f.FloorId = fs.FloorId
+                                             WHERE f.SellerCatId = :p_SellerCatId AND ROWNUM = 1";
+
+                            using (var fsCmd = new OracleCommand(floorSecQuery, conn))
+                            {
+                                fsCmd.Transaction = transaction;
+                                fsCmd.BindByName = true;
+                                fsCmd.Parameters.Add("p_SellerCatId", OracleDbType.Decimal).Value = sellerCatId;
+                                using (var reader = await fsCmd.ExecuteReaderAsync())
+                                {
+                                    if (await reader.ReadAsync())
+                                    {
+                                        floorName = reader.IsDBNull(0) ? "1" : reader.GetString(0);
+                                        sectionName = reader.IsDBNull(1) ? "A" : reader.GetString(1);
+                                    }
+                                }
+                            }
+
+                            string cleanSection = string.IsNullOrWhiteSpace(sectionName) ? "A" : sectionName.Trim().Substring(0, 1).ToUpper();
+                            var match = System.Text.RegularExpressions.Regex.Match(floorName ?? "", @"\d+");
+                            string cleanFloor = match.Success ? match.Value : "1";
+
+                            // ৪. সিট জেনারেট করে SEATS টেবিলে ইনসার্ট করা
+                            int existingSeatsCount = 0;
+                            string countQuery = "SELECT COUNT(*) FROM IMTIAZ_SAMIR.SEATS WHERE ITEMID = :p_ItemId";
+                            using (var countCmd = new OracleCommand(countQuery, conn))
+                            {
+                                countCmd.Transaction = transaction;
+                                countCmd.BindByName = true;
+                                countCmd.Parameters.Add("p_ItemId", OracleDbType.Decimal).Value = sellerCatId;
+                                var cRes = await countCmd.ExecuteScalarAsync();
+                                if (cRes != null && cRes != DBNull.Value) existingSeatsCount = Convert.ToInt32(cRes);
+                            }
+
                             string insertSeatQuery = @"INSERT INTO IMTIAZ_SAMIR.SEATS (ITEMID, CLASSID, SEATNUMBER, ISAVAILABLE) 
                                                VALUES (:p_ItemId, :p_ClassId, :p_SeatNum, 1)";
 
-                            for (int i = startSeatIndex; i <= endSeatIndex; i++)
+                            for (int i = 1; i <= totalSeats; i++)
                             {
-                                string seatNumber = $"{cleanSection}{cleanFloor}{i.ToString("D4")}"; // A20001, A20002...
+                                string seatNumber = $"{cleanSection}{cleanFloor}{(existingSeatsCount + i).ToString("D4")}";
 
                                 using (var seatCmd = new OracleCommand(insertSeatQuery, conn))
                                 {
                                     seatCmd.Transaction = transaction;
                                     seatCmd.BindByName = true;
                                     seatCmd.Parameters.Add("p_ItemId", OracleDbType.Decimal).Value = sellerCatId;
-                                    seatCmd.Parameters.Add("p_ClassId", OracleDbType.Decimal).Value = classId;
+                                    seatCmd.Parameters.Add("p_ClassId", OracleDbType.Decimal).Value = seatCatId;
                                     seatCmd.Parameters.Add("p_SeatNum", OracleDbType.Varchar2).Value = seatNumber;
                                     await seatCmd.ExecuteNonQueryAsync();
                                 }
                             }
-                            await transaction.CommitAsync();
-                        }
 
-                        string startSeat = $"{cleanSection}{cleanFloor}{startSeatIndex.ToString("D4")}";
-                        string endSeat = $"{cleanSection}{cleanFloor}{endSeatIndex.ToString("D4")}";
-                        TempData["SuccessMessage"] = $"Category allocated! Seats generated from {startSeat} to {endSeat} ({totalSeats} seats).";
+                            await transaction.CommitAsync();
+                            TempData["SuccessMessage"] = $"Category saved and {totalSeats} seats generated successfully!";
+                        }
+                        catch
+                        {
+                            await transaction.RollbackAsync();
+                            throw;
+                        }
                     }
                 }
             }
@@ -370,8 +431,6 @@ namespace EBS.Controllers
 
             return RedirectToAction(nameof(ManageSeatCategories));
         }
-        // ==========================================
-        // 3. CUSTOMER BOOKING REQUESTS (ACCEPT/REJECT)
         // ==========================================
         [HttpGet]
         public async Task<IActionResult> BookingRequests()
@@ -502,13 +561,7 @@ namespace EBS.Controllers
                     await conn.OpenAsync();
                     using (var transaction = conn.BeginTransaction())
                     {
-                        // ১. ক্যাটাগরি টেবিল আপডেট করা
-                        string updateCatQuery = @"UPDATE IMTIAZ_SAMIR.SeatCategories 
-                                       SET CategoryName = :p_Name, 
-                                           PricePerSeat = :p_Price, 
-                                           TotalSeats = :p_Seats 
-                                       WHERE SeatCatId = :p_Id";
-
+                        // ১. সবার আগে এই SeatCatId এর বিপরীতে সঠিক SellerCatId (Item ID) বের করে নেওয়া
                         decimal sellerCatId = 0;
                         string getSellerCatQuery = "SELECT SellerCatId FROM IMTIAZ_SAMIR.SeatCategories WHERE SeatCatId = :p_Id";
                         using (var getCmd = new OracleCommand(getSellerCatQuery, conn))
@@ -517,8 +570,24 @@ namespace EBS.Controllers
                             getCmd.BindByName = true;
                             getCmd.Parameters.Add("p_Id", OracleDbType.Decimal).Value = seatCatId;
                             var res = await getCmd.ExecuteScalarAsync();
-                            if (res != null && res != DBNull.Value) sellerCatId = Convert.ToDecimal(res);
+                            if (res != null && res != DBNull.Value)
+                            {
+                                sellerCatId = Convert.ToDecimal(res);
+                            }
                         }
+
+                        if (sellerCatId <= 0)
+                        {
+                            TempData["ErrorMessage"] = "Error: Parent Seller Category not found.";
+                            return RedirectToAction(nameof(ManageSeatCategories));
+                        }
+
+                        // ২. ক্যাটাগরি টেবিল আপডেট করা
+                        string updateCatQuery = @"UPDATE IMTIAZ_SAMIR.SeatCategories 
+                                       SET CategoryName = :p_Name, 
+                                           PricePerSeat = :p_Price, 
+                                           TotalSeats = :p_Seats 
+                                       WHERE SeatCatId = :p_Id";
 
                         using (var cmd = new OracleCommand(updateCatQuery, conn))
                         {
@@ -531,7 +600,7 @@ namespace EBS.Controllers
                             await cmd.ExecuteNonQueryAsync();
                         }
 
-                        // ২. এই ক্যাটাগরির আগের জেনারেট করা সিটগুলো SEATS টেবিল থেকে মুছে ফেলা
+                        // ৩. এই ক্যাটাগরির আগের জেনারেট করা সিটগুলো SEATS টেবিল থেকে মুছে ফেলা
                         string deleteOldSeats = "DELETE FROM IMTIAZ_SAMIR.SEATS WHERE CLASSID = :p_ClassId";
                         using (var delCmd = new OracleCommand(deleteOldSeats, conn))
                         {
@@ -541,7 +610,7 @@ namespace EBS.Controllers
                             await delCmd.ExecuteNonQueryAsync();
                         }
 
-                        // ৩. নতুন সিট সংখ্যা অনুযায়ী আবার সিট কোড রি-জেনারেট করা
+                        // ৪. ফ্লোর ও সেকশন নাম বের করা
                         string floorName = "1";
                         string sectionName = "A";
                         string floorSecQuery = @"SELECT f.FloorName, fs.SectionName 
@@ -568,6 +637,7 @@ namespace EBS.Controllers
                         var match = System.Text.RegularExpressions.Regex.Match(floorName ?? "", @"\d+");
                         string cleanFloor = match.Success ? match.Value : "1";
 
+                        // ৫. নতুন সিট সংখ্যা অনুযায়ী আবার সিট কোড রি-জেনারেট করে SEATS টেবিলে ইনসার্ট করা
                         string insertSeatQuery = @"INSERT INTO IMTIAZ_SAMIR.SEATS (ITEMID, CLASSID, SEATNUMBER, ISAVAILABLE) 
                                            VALUES (:p_ItemId, :p_ClassId, :p_SeatNum, 1)";
 
@@ -579,6 +649,7 @@ namespace EBS.Controllers
                             {
                                 seatCmd.Transaction = transaction;
                                 seatCmd.BindByName = true;
+                                // এখানে এখন সঠিক sellerCatId (যেমন: 1 বা 6) পাস হবে, ফলে FK_SEATS_ITEMS এরর আর আসবে না
                                 seatCmd.Parameters.Add("p_ItemId", OracleDbType.Decimal).Value = sellerCatId;
                                 seatCmd.Parameters.Add("p_ClassId", OracleDbType.Decimal).Value = seatCatId;
                                 seatCmd.Parameters.Add("p_SeatNum", OracleDbType.Varchar2).Value = seatNumber;

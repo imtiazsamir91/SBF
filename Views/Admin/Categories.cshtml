@@ -1,17 +1,20 @@
-﻿@model EBS.Models.CategoriesPageViewModel
+﻿@model EBS.Models.SeatCategoryManagementViewModel
 
 @{
-    ViewData["Title"] = "Manage Categories";
-    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Title"] = "Manage Seat Categories";
+    Layout = "~/Views/Shared/_SellerLayout.cshtml";
 }
 
-<div class="container-fluid px-4">
+<div class="container-fluid px-4 py-3">
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="fw-bold text-dark mb-1">Manage Categories</h2>
-            <p class="text-muted mb-0">Create, edit, and remove service categories.</p>
+            <h2 class="fw-bold text-dark mb-1"><i class="fas fa-chair text-success me-2"></i> Seat Categories & Allocation</h2>
+            <p class="text-muted mb-0">Define category-wise seats (VIP, Regular, Business) within your venue capacity.</p>
         </div>
+        <a asp-action="Dashboard" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+        </a>
     </div>
 
     <!-- Alert Messages -->
@@ -30,74 +33,158 @@
         </div>
     }
 
+    <!-- Capacity Info Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm bg-primary text-white p-3">
+                <div class="text-white-50 small fw-bold">TOTAL VENUE CAPACITY</div>
+                <h2 class="fw-bold mb-0 mt-1">@Model.TotalCapacitySeats</h2>
+                <small>From dynamic floor sections</small>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm bg-success text-white p-3">
+                <div class="text-white-50 small fw-bold">TOTAL ALLOCATED SEATS</div>
+                <h2 class="fw-bold mb-0 mt-1">@Model.AllocatedSeatsCount</h2>
+                <small>Assigned across categories</small>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm bg-warning text-dark p-3">
+                <div class="text-dark small fw-bold">REMAINING UNASSIGNED SEATS</div>
+                <h2 class="fw-bold mb-0 mt-1">@Model.RemainingSeats</h2>
+                <small>Available to allocate</small>
+            </div>
+        </div>
+    </div>
+
     <div class="row g-4">
-        <!-- Category Create Form -->
+        <!-- Left Side: Forms (Booking Rule & Allocate Seat Category) -->
         <div class="col-lg-4">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-primary text-white py-3">
-                    <h5 class="m-0 fw-bold"><i class="fas fa-plus-circle me-2"></i> Add New Category</h5>
+            <!-- Full Venue Booking Rule Setting Form -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-dark text-white py-3">
+                    <h5 class="m-0 fw-bold"><i class="fas fa-sliders-h me-2"></i> Booking Rule Setting</h5>
                 </div>
                 <div class="card-body">
-                    <form asp-action="CreateCategory" method="post">
+                    <form asp-action="UpdateVenueBookingRule" method="post">
                         @Html.AntiForgeryToken()
+                        <input type="hidden" name="sellerCatId" value="@Model.SellerCatId" />
+
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" role="switch" id="allowFullVenue" name="allowFullVenue" value="true" @(Model.AllowFullVenue == 1 ? "checked" : "") style="width: 45px; height: 22px;">
+                            <label class="form-check-label fw-semibold text-dark ms-2" for="allowFullVenue">
+                                Allow Full Venue Reservation Only
+                            </label>
+                        </div>
+                        <small class="text-muted d-block mb-3">
+                            <i class="fas fa-info-circle text-primary me-1"></i> When ON, customers must reserve the entire venue. When OFF, individual seat booking is enabled.
+                        </small>
+                        <button type="submit" class="btn btn-dark w-100 fw-bold btn-sm py-2">
+                            <i class="fas fa-save me-1"></i> Save Booking Rule
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Allocate Seat Category Form -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-success text-white py-3">
+                    <h5 class="m-0 fw-bold"><i class="fas fa-plus-circle me-2"></i> Allocate Seat Category</h5>
+                </div>
+                <div class="card-body">
+                    <form asp-action="SaveSeatCategory" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="sellerCatId" value="@Model.SellerCatId" />
 
                         <div class="mb-3">
                             <label class="form-label fw-semibold">Category Name <span class="text-danger">*</span></label>
-                            <input type="text" asp-for="NewCategory.CategoryName" class="form-control" placeholder="e.g. Bus Booking, Hotel, Event" required maxlength="50" />
+                            <input type="text" name="categoryName" class="form-control" placeholder="e.g. VIP, Regular, Business" required maxlength="50" />
+                            <div class="form-text small">Default category is 'Regular'.</div>
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label fw-semibold">Description</label>
-                            <textarea asp-for="NewCategory.Description" class="form-control" rows="3" placeholder="Short description..." maxlength="255"></textarea>
+                            <label class="form-label fw-semibold">Price Per Seat (৳) <span class="text-danger">*</span></label>
+                            <input type="number" step="0.01" min="1" name="pricePerSeat" class="form-control" placeholder="e.g. 500" required />
                         </div>
 
-                        <button type="submit" class="btn btn-primary w-100 fw-bold">
-                            <i class="fas fa-save me-1"></i> Save Category
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Number of Seats <span class="text-danger">*</span></label>
+                            <input type="number" name="totalSeats" class="form-control"
+                                   min="1" max="@Model.RemainingSeats"
+                                   placeholder="Max remaining: @Model.RemainingSeats"
+                                   @(Model.RemainingSeats <= 0 ? "disabled" : "") required />
+                            <div class="form-text text-muted small mt-1">
+                                @if (Model.RemainingSeats > 0)
+                                {
+                                    <span class="text-success fw-bold"><i class="fas fa-info-circle me-1"></i> Up to @Model.RemainingSeats seats available.</span>
+                                }
+                                else
+                                {
+                                    <span class="text-danger fw-bold"><i class="fas fa-exclamation-circle me-1"></i> Venue capacity fully allocated!</span>
+                                }
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100 fw-bold" @(Model.RemainingSeats <= 0 ? "disabled" : "")>
+                            <i class="fas fa-save me-1"></i> Save & Allocate Seats
                         </button>
                     </form>
                 </div>
             </div>
         </div>
 
-        <!-- Categories List Table -->
+        <!-- Right Side: Configured Categories & Seat Numbers Table -->
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white py-3">
-                    <h5 class="m-0 fw-bold text-dark"><i class="fas fa-list me-2 text-primary"></i> Category List</h5>
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="m-0 fw-bold text-dark"><i class="fas fa-list me-2 text-success"></i> Configured Categories & Seat Numbers</h5>
+                    <span class="badge bg-secondary">Total Categories: @Model.ExistingCategories.Count()</span>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th>ID</th>
-                                    <th>Category Name</th>
-                                    <th>Description</th>
-                                    <th>Created At</th>
+                                    <th class="ps-3">Category</th>
+                                    <th>Price</th>
+                                    <th>Seats & Range</th>
                                     <th class="text-center">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @if (Model.CategoriesList != null && Model.CategoriesList.Any())
+                                @if (Model.ExistingCategories != null && Model.ExistingCategories.Any())
                                 {
-                                    @foreach (var item in Model.CategoriesList)
+                                    int runningSeatCounter = 1;
+                                    foreach (var cat in Model.ExistingCategories)
                                     {
+                                        int startNum = runningSeatCounter;
+                                        int endNum = runningSeatCounter + cat.TotalSeats - 1;
+                                        runningSeatCounter = endNum + 1;
+
+                                        string seatRangeDisplay = $"A2{startNum.ToString("D4")} - A2{endNum.ToString("D4")}";
+
                                         <tr>
-                                            <td class="fw-bold">#@item.CategoryId</td>
-                                            <td><span class="badge bg-info text-dark font-size-14">@item.CategoryName</span></td>
-                                            <td class="text-muted">@(string.IsNullOrEmpty(item.Description) ? "N/A" : item.Description)</td>
-                                            <td>@item.CreatedAt.ToString("yyyy-MM-dd")</td>
+                                            <td class="fw-bold text-dark ps-3">
+                                                <i class="fas fa-tag text-success me-2"></i>@cat.CategoryName
+                                            </td>
+                                            <td class="text-success fw-bold">৳@cat.PricePerSeat.ToString("N2")</td>
+                                            <td>
+                                                <span class="badge bg-info text-dark px-2 py-1">@cat.TotalSeats Seats</span>
+                                                <div class="small text-muted mt-1"><i class="fas fa-barcode me-1"></i> @seatRangeDisplay</div>
+                                            </td>
                                             <td class="text-center">
                                                 <div class="d-flex justify-content-center gap-2">
                                                     <!-- Edit Button -->
-                                                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editModal-@item.CategoryId">
+                                                    <button type="button" class="btn btn-sm btn-outline-primary"
+                                                            onclick="openEditModal(@cat.SeatCatId, '@cat.CategoryName', @cat.PricePerSeat, @cat.TotalSeats)">
                                                         <i class="fas fa-edit"></i> Edit
                                                     </button>
 
                                                     <!-- Delete Form -->
-                                                    <form asp-action="DeleteCategory" method="post" onsubmit="return confirm('Are you sure you want to delete this category?');" class="d-inline">
+                                                    <form asp-action="DeleteSeatCategory" method="post" onsubmit="return confirm('Are you sure you want to delete this seat category?');" class="d-inline">
                                                         @Html.AntiForgeryToken()
-                                                        <input type="hidden" name="categoryId" value="@item.CategoryId" />
+                                                        <input type="hidden" name="seatCatId" value="@cat.SeatCatId" />
                                                         <button type="submit" class="btn btn-sm btn-outline-danger">
                                                             <i class="fas fa-trash-alt"></i> Delete
                                                         </button>
@@ -105,34 +192,8 @@
                                                 </div>
 
                                                 <!-- Edit Modal -->
-                                                <div class="modal fade text-start" id="editModal-@item.CategoryId" tabindex="-1" aria-hidden="true">
-                                                    <div class="modal-dialog">
-                                                        <div class="modal-content">
-                                                            <form asp-action="EditCategory" method="post">
-                                                                @Html.AntiForgeryToken()
-                                                                <input type="hidden" name="categoryId" value="@item.CategoryId" />
-
-                                                                <div class="modal-header bg-primary text-white">
-                                                                    <h5 class="modal-title fw-bold"><i class="fas fa-edit me-2"></i> Edit Category #@item.CategoryId</h5>
-                                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                                </div>
-                                                                <div class="modal-body">
-                                                                    <div class="mb-3">
-                                                                        <label class="form-label fw-semibold">Category Name <span class="text-danger">*</span></label>
-                                                                        <input type="text" name="categoryName" class="form-control" value="@item.CategoryName" required maxlength="50" />
-                                                                    </div>
-                                                                    <div class="mb-3">
-                                                                        <label class="form-label fw-semibold">Description</label>
-                                                                        <textarea name="description" class="form-control" rows="3" maxlength="255">@item.Description</textarea>
-                                                                    </div>
-                                                                </div>
-                                                                <div class="modal-footer">
-                                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                                    <button type="submit" class="btn btn-primary fw-bold"><i class="fas fa-save me-1"></i> Save Changes</button>
-                                                                </div>
-                                                            </form>
-                                                        </div>
-                                                    </div>
+                                                <div class="modal fade text-start" id="editModal-@cat.SeatCatId" tabindex="-1" aria-hidden="true">
+                                                    <!-- Modal content handled dynamically via global modal or inline -->
                                                 </div>
                                             </td>
                                         </tr>
@@ -141,7 +202,11 @@
                                 else
                                 {
                                     <tr>
-                                        <td colspan="5" class="text-center py-4 text-muted">No categories found in Oracle DB.</td>
+                                        <td colspan="4" class="text-center py-5 text-muted">
+                                            <i class="fas fa-chair fa-3x mb-3 d-block text-secondary"></i>
+                                            <h5>No seat categories allocated yet.</h5>
+                                            <p class="small">Use the allocation form on the left to create categories.</p>
+                                        </td>
                                     </tr>
                                 }
                             </tbody>
@@ -152,3 +217,55 @@
         </div>
     </div>
 </div>
+
+<!-- Global Edit Category Modal -->
+<div class="modal fade" id="editCategoryModal" tabindex="-1" aria-labelledby="editCategoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold" id="editCategoryModalLabel"><i class="fas fa-edit me-2"></i> Update Seat Category</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form asp-action="UpdateSeatCategory" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-body p-4">
+                    <input type="hidden" id="editSeatCatId" name="seatCatId" />
+                    <input type="hidden" name="sellerCatId" value="@Model.SellerCatId" />
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Category Name <span class="text-danger">*</span></label>
+                        <input type="text" id="editCategoryName" name="categoryName" class="form-control" required maxlength="50" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Price Per Seat (৳) <span class="text-danger">*</span></label>
+                        <input type="number" step="0.01" min="1" id="editPricePerSeat" name="pricePerSeat" class="form-control" required />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Number of Seats <span class="text-danger">*</span></label>
+                        <input type="number" min="1" id="editTotalSeats" name="totalSeats" class="form-control" required />
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm fw-bold"><i class="fas fa-save me-1"></i> Update Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function openEditModal(id, name, price, seats) {
+            document.getElementById('editSeatCatId').value = id;
+            document.getElementById('editCategoryName').value = name;
+            document.getElementById('editPricePerSeat').value = price;
+            document.getElementById('editTotalSeats').value = seats;
+
+            var modal = new bootstrap.Modal(document.getElementById('editCategoryModal'));
+            modal.show();
+        }
+    </script>
+}
