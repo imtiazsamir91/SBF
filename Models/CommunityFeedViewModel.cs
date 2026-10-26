@@ -23,6 +23,16 @@ namespace EBS.Models
         public int? Capacity { get; set; }
         public string Location { get; set; }
         public DateTime CreatedDate { get; set; }
+
+        // সেলারের সিট ক্যাটাগরি লিস্ট (VIP, Regular, Business)
+        public List<SellerCategoryDetail> Categories { get; set; } = new List<SellerCategoryDetail>();
+    }
+
+    public class SellerCategoryDetail
+    {
+        public string CategoryName { get; set; } // VIP, Regular, Business
+        public int TotalSeats { get; set; }
+        public decimal PricePerSeat { get; set; }
     }
 
     public class NewPostModel

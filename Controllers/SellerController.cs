@@ -122,7 +122,8 @@ namespace EBS.Controllers
         [HttpGet]
         public async Task<IActionResult> ManageSeatCategories()
         {
-            decimal sellerId = 15; // সামقয়িকভাবে সরাসরি ১৫ বসিয়ে টেস্ট করুন (সেশনের সমস্যা এড়াতে)
+            // ফিক্সড ১৫ বাদ দিয়ে ডাইনামিক সেশন আইডি কল করা হলো
+            decimal sellerId = GetLoggedInSellerId();
             var model = new SeatCategoryManagementViewModel();
             string connString = _configuration.GetConnectionString("OracleDbContext")!;
 
@@ -150,11 +151,11 @@ namespace EBS.Controllers
 
                     if (model.SellerCatId > 0)
                     {
-                        // ২. ওই SellerCatId (যেমন: ৬) এর আন্ডারে থাকা ফ্লোর সেকশনের মোট সিট ক্যাপাসিটি যোগ করা
+                        // ২. ওই SellerCatId এর আন্ডারে থাকা ফ্লোর সেকশনের মোট সিট ক্যাপাসিটি যোগ করা
                         string capQuery = @"SELECT NVL(SUM(fs.SeatCapacity), 0) 
-                                     FROM IMTIAZ_SAMIR.ItemFloors f 
-                                     JOIN IMTIAZ_SAMIR.FloorSections fs ON f.FloorId = fs.FloorId 
-                                     WHERE f.SellerCatId = :p_SellerCatId";
+                                   FROM IMTIAZ_SAMIR.ItemFloors f 
+                                   JOIN IMTIAZ_SAMIR.FloorSections fs ON f.FloorId = fs.FloorId 
+                                   WHERE f.SellerCatId = :p_SellerCatId";
 
                         using (var capCmd = new OracleCommand(capQuery, conn))
                         {
@@ -166,8 +167,8 @@ namespace EBS.Controllers
 
                         // ৩. ইতিমধ্যে তৈরি করা ক্যাটাগরিগুলোর সিট ফেচ করা
                         string listQuery = @"SELECT SeatCatId, CategoryName, PricePerSeat, TotalSeats 
-                                     FROM IMTIAZ_SAMIR.SeatCategories 
-                                     WHERE SellerCatId = :p_ScId ORDER BY SeatCatId ASC";
+                                   FROM IMTIAZ_SAMIR.SeatCategories 
+                                   WHERE SellerCatId = :p_ScId ORDER BY SeatCatId ASC";
 
                         using (var listCmd = new OracleCommand(listQuery, conn))
                         {

@@ -1,4 +1,149 @@
-﻿@page
-@model EBS.Views.Customer.MyVenueRequestsModel
+﻿@model EBS.Models.CustomerVenueBookingViewModel
+
 @{
+    ViewData["Title"] = "My Venue Booking Requests";
+    Layout = "~/Views/Shared/_CustomerLayout.cshtml";
 }
+
+<div class="container-fluid px-4 py-3">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1"><i class="fas fa-building text-primary me-2"></i> Venue Reservation Requests</h2>
+            <p class="text-muted mb-0">Request venue reservations and track status in real-time.</p>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm fw-bold shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#newRequestModal">
+            <i class="fas fa-paper-plane me-1"></i> Send Venue Request
+        </button>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+            <i class="fas fa-check-circle me-2"></i> @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i> @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Requests Table -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3">
+            <h5 class="fw-bold m-0 text-dark"><i class="fas fa-list me-2 text-primary"></i> My Booking Requests History</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Request ID</th>
+                            <th>Venue Name</th>
+                            <th>Total Seats</th>
+                            <th>Total Price</th>
+                            <th>Status</th>
+                            <th>Requested Date</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.MyRequests != null && Model.MyRequests.Any())
+                        {
+                            foreach (var item in Model.MyRequests)
+                            {
+                                <tr>
+                                    <td class="fw-bold ps-4">#@item.RequestId</td>
+                                    <td><span class="fw-semibold text-dark">@item.VenueName</span></td>
+                                    <td><span class="badge bg-secondary">@item.TotalSeats Seats</span></td>
+                                    <td class="text-success fw-bold">৳@item.TotalPrice.ToString("N2")</td>
+                                    <td>
+                                        @if (item.Status == "PENDING")
+                                        {
+                                            <span class="badge bg-warning text-dark px-2 py-1">Pending</span>
+                                        }
+                                        else if (item.Status == "CONFIRMED")
+                                        {
+                                            <span class="badge bg-success px-2 py-1">Confirmed</span>
+                                        }
+                                        else if (item.Status == "CANCELLED")
+                                        {
+                                            <span class="badge bg-danger px-2 py-1">Cancelled</span>
+                                        }
+                                    </td>
+                                    <td>@item.RequestDate.ToString("yyyy-MM-dd hh:mm tt")</td>
+                                    <td class="text-center">
+                                        @if (item.Status == "PENDING")
+                                        {
+                                            <form asp-action="CancelVenueRequest" method="post" onsubmit="return confirm('Are you sure you want to cancel this request?');" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="requestId" value="@item.RequestId" />
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                    <i class="fas fa-times me-1"></i> Cancel
+                                                </button>
+                                            </form>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small">No Action</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="7" class="text-center py-5 text-muted">
+                                    <i class="fas fa-folder-open fa-3x mb-3 text-secondary d-block"></i>
+                                    <h5>No venue booking requests found.</h5>
+                                    <p class="small">Click "Send Venue Request" to create a new reservation.</p>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for New Request -->
+<div class="modal fade" id="newRequestModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-paper-plane me-2"></i> Request Venue Reservation</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-action="SubmitVenueRequest" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Select Venue *</label>
+                        <select name="sellerCatId" class="form-select" required>
+                            <option value="">-- Choose Venue --</option>
+                            @foreach (var venue in Model.AvailableVenues)
+                            {
+                                <option value="@venue.SellerCatId">@venue.VenueName (Capacity: @venue.TotalCapacity)</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Special Notes</label>
+                        <textarea name="notes" class="form-control" rows="3" placeholder="Optional notes..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary btn-sm fw-bold"><i class="fas fa-paper-plane me-1"></i> Submit Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using Oracle.ManagedDataAccess.Client;
+using Microsoft.AspNetCore.Http; // সেশনের জন্য এটি প্রয়োজন
 
 namespace EBS.Controllers
 {
@@ -35,7 +36,6 @@ namespace EBS.Controllers
                 return View();
             }
 
-            
             string connString = _configuration.GetConnectionString("OracleDbContext")!;
             decimal userId = 0;
             string roleName = "User";
@@ -80,7 +80,7 @@ namespace EBS.Controllers
                             }
 
                             string insertQuery = @"INSERT INTO IMTIAZ_SAMIR.AppUsers (UserId, FullName, Email, PasswordHash, RoleId) 
-                                                 VALUES (IMTIAZ_SAMIR.seq_users.NEXTVAL, 'System Admin', :p_Email, 'hashed_pwd', :p_RoleId)";
+                                                   VALUES (IMTIAZ_SAMIR.seq_users.NEXTVAL, 'System Admin', :p_Email, 'hashed_pwd', :p_RoleId)";
 
                             using (var insertCmd = new OracleCommand(insertQuery, conn))
                             {
@@ -110,6 +110,11 @@ namespace EBS.Controllers
                 return View();
             }
 
+            // 🔑 1. অত্যন্ত গুরুত্বপূর্ণ: সেশনে ইউজারের ID এবং Role সেভ করা
+            HttpContext.Session.SetInt32("UserId", Convert.ToInt32(userId));
+            HttpContext.Session.SetString("UserRole", roleName);
+
+            // 2. Cookie Authentication Claims সেট করা
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.Name, email),
@@ -135,9 +140,14 @@ namespace EBS.Controllers
                 return Redirect(returnUrl);
             }
 
+            // 3. রোল অনুযায়ী রিডাইরেক্ট করা (যেমন: সেলার হলে Seller Dashboard-এ পাঠানো)
             if (roleName == "Admin")
             {
                 return RedirectToAction("Dashboard", "Admin");
+            }
+            else if (roleName == "Seller")
+            {
+                return RedirectToAction("Dashboard", "Seller");
             }
 
             return RedirectToAction("Index", "Home");
@@ -147,6 +157,8 @@ namespace EBS.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Logout()
         {
+            // সেশন ক্লিয়ার এবং কুকি সাইন-আউট করা
+            HttpContext.Session.Clear();
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return RedirectToAction("Login", "Account");
         }

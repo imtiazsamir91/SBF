@@ -1,5 +1,4 @@
 ﻿@using Microsoft.AspNetCore.Http
-@inject IConfiguration Configuration
 
 <!DOCTYPE html>
 <html lang="en">
@@ -158,48 +157,8 @@
             <!-- TOP NAVBAR -->
             <nav class="navbar seller-navbar d-flex justify-content-between align-items-center">
                 <div class="d-flex align-items-center gap-2">
-                    @{
-                        // রিয়েল-টাইম ডাটাবেস থেকে সেলারের নাম ও ভেন্যুর নাম ফেচ করার কোড
-                        int userId = Context.Session.GetInt32("UserId") ?? 15;
-                        string sellerName = "Seller";
-                        string itemName = "No Venue Set";
-                        string connString = Configuration.GetConnectionString("OracleDbContext")!;
-
-                        try
-                        {
-                            using (var conn = new Oracle.ManagedDataAccess.Client.OracleConnection(connString))
-                            {
-                                await conn.OpenAsync();
-                                string query = @"SELECT u.FullName, sc.ItemName
-                                        FROM IMTIAZ_SAMIR.AppUsers u
-                                        LEFT JOIN IMTIAZ_SAMIR.SellerCategory sc ON u.UserId = sc.SellerId
-                                        WHERE u.UserId = :p_UserId";
-
-                                using (var cmd = new Oracle.ManagedDataAccess.Client.OracleCommand(query, conn))
-                                {
-                                    cmd.BindByName = true;
-                                    cmd.Parameters.Add("p_UserId", Oracle.ManagedDataAccess.Client.OracleDbType.Decimal).Value = userId;
-
-                                    using (var reader = await cmd.ExecuteReaderAsync())
-                                    {
-                                        if (await reader.ReadAsync())
-                                        {
-                                            sellerName = reader.IsDBNull(0) ? "Seller" : reader.GetString(0);
-                                            itemName = reader.IsDBNull(1) ? "No Venue Set" : reader.GetString(1);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        catch (Exception) { }
-                    }
-
-                    <span class="badge bg-success px-3 py-2 fs-6 shadow-sm">
-                        <i class="fas fa-user-check me-1"></i> @sellerName
-                    </span>
-                    <span class="badge bg-dark px-3 py-2 fs-6 shadow-sm text-light">
-                        <i class="fas fa-store me-1"></i> @itemName
-                    </span>
+                    <!-- ডাইনামিক সেলার ইনফো ভিউ কম্পোনেন্ট কল করা হলো -->
+                    @await Component.InvokeAsync("SellerInfo")
                 </div>
 
                 <div class="dropdown">

@@ -1,6 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Oracle.ManagedDataAccess.Client;
+using System;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Http;
 
 namespace EBS.ViewComponents
 {
@@ -15,11 +18,21 @@ namespace EBS.ViewComponents
 
         public async Task<IViewComponentResult> InvokeAsync()
         {
-            // সেশন থেকে ইউজার আইডি নেওয়া (আপনার লগইন লজিক অনুযায়ী)
-            int userId = HttpContext.Session.GetInt32("UserId") ?? 15;
+            // ১. সেশন থেকে সরাসরি কারেন্ট লগইন করা ইউজারের ID নেওয়া (কোনো হার্ডকোডেড আইডি ছাড়া)
+            int? userIdNullable = HttpContext.Session.GetInt32("UserId");
+
             string sellerName = "Seller Panel";
             string itemName = "Venue Not Set";
 
+            // সেশন না থাকলে বা ইউজার লগইন না থাকলে ডিফল্ট ভিউ রিটার্ন করবে
+            if (userIdNullable == null)
+            {
+                ViewData["SellerName"] = sellerName;
+                ViewData["ItemName"] = itemName;
+                return View("_SellerInfoPartial");
+            }
+
+            int userId = userIdNullable.Value;
             string connString = _configuration.GetConnectionString("OracleDbContext")!;
 
             try
@@ -27,6 +40,8 @@ namespace EBS.ViewComponents
                 using (var conn = new OracleConnection(connString))
                 {
                     await conn.OpenAsync();
+
+                    // ২. লগইন করা নির্দিষ্ট ইউজারের ডাটাবেস রেকর্ড ডাইনামিকালি ফেচ করা
                     string query = @"SELECT u.FullName, sc.ItemName 
                                      FROM IMTIAZ_SAMIR.AppUsers u
                                      LEFT JOIN IMTIAZ_SAMIR.SellerCategory sc ON u.UserId = sc.SellerId
@@ -50,10 +65,9 @@ namespace EBS.ViewComponents
             }
             catch (Exception)
             {
-                
+                // এরর লগিং বা হ্যান্ডলিং
             }
 
-            
             ViewData["SellerName"] = sellerName;
             ViewData["ItemName"] = itemName;
 
