@@ -142,16 +142,12 @@
                             }
                         </div>
                         <div class="card-footer bg-white border-0 p-4 pt-0 d-flex justify-content-between align-items-center">
-                            <small class="text-muted fw-semibold"><i class="far fa-clock me-1"></i> Instant Booking</small>
-                            <!-- UPDATED BOOK VENUE BUTTON TO TRIGGER CONFIRMATION MODAL -->
-                            <button type="button" 
-                                    class="btn btn-success btn-sm rounded-pill px-4 fw-semibold shadow-sm"
-                                    data-bs-toggle="modal" 
-                                    data-bs-target="#bookingModal"
-                                    data-itemid="@post.PostId"
-                                    data-venuename="@post.Title">
+                            <small class="text-muted fw-semibold"><i class="far fa-clock me-1"></i> Instant Booking Page</small>
+
+                            <!-- DIRECT LINK TO BOOKING / VENUE DETAILS PAGE (MODAL REMOVED) -->
+                            <a asp-controller="Booking" asp-action="VenueDetails" asp-route-id="@post.PostId" class="btn btn-success btn-sm rounded-pill px-4 fw-semibold shadow-sm">
                                 <i class="fas fa-ticket-alt me-1"></i> Book Venue
-                            </button>
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -170,49 +166,7 @@
     </div>
 </div>
 
-<!-- 1. BOOKING CONFIRMATION MODAL (CONNECTED TO BOOKINGS TABLE) -->
-<div class="modal fade" id="bookingModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content rounded-4 border-0 shadow">
-            <div class="modal-header border-0 pb-0 px-4 pt-4">
-                <h5 class="modal-title fw-bold text-dark"><i class="fas fa-calendar-check text-success me-2"></i> Confirm Venue Booking</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form asp-controller="Booking" asp-action="CreateBooking" method="post">
-                @Html.AntiForgeryToken()
-                
-                <!-- HIDDEN PARAMETERS MATCHING BOOKINGS TABLE SCHEMAS -->
-                <input type="hidden" id="modalItemId" name="itemId" />
-                <input type="hidden" id="modalSeatId" name="seatId" value="31" />
-
-                <div class="modal-body px-4">
-                    <div class="alert alert-light border rounded-3 p-3 mb-3">
-                        <small class="text-muted d-block">Selected Venue / Item:</small>
-                        <strong class="text-success fs-6" id="modalVenueName">Venue Name</strong>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold small">Travel / Event Date</label>
-                        <input type="date" name="travelOrEventDate" class="form-control rounded-pill px-3 py-2" required min="@DateTime.Now.ToString("yyyy-MM-dd")" />
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold small">Total Amount (BDT)</label>
-                        <input type="number" name="totalAmount" class="form-control rounded-pill px-3 py-2" placeholder="e.g. 1000" step="0.01" required />
-                    </div>
-                </div>
-                <div class="modal-footer border-0 pt-0 px-4 pb-4">
-                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-success rounded-pill px-4 fw-semibold shadow-sm">
-                        <i class="fas fa-paper-plane me-1"></i> Send Booking Request
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- 2. POST REQUIREMENT MODAL -->
+<!-- POST REQUIREMENT MODAL (STILL AVAILABLE FOR CUSTOMERS) -->
 <div class="modal fade" id="createPostModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content rounded-4 border-0 shadow">
@@ -254,22 +208,3 @@
         </div>
     </div>
 </div>
-
-<!-- JAVASCRIPT TO PASS VENUE ID & NAME TO MODAL -->
-@section Scripts {
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            var bookingModal = document.getElementById('bookingModal');
-            if (bookingModal) {
-                bookingModal.addEventListener('show.bs.modal', function (event) {
-                    var button = event.relatedTarget;
-                    var itemId = button.getAttribute('data-itemid');
-                    var venueName = button.getAttribute('data-venuename');
-
-                    document.getElementById('modalItemId').value = itemId;
-                    document.getElementById('modalVenueName').textContent = venueName;
-                });
-            }
-        });
-    </script>
-}
