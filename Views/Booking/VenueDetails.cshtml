@@ -1,0 +1,73 @@
+﻿@model EBS.Models.PostItem
+@{
+    ViewData["Title"] = "Venue Details & Booking Request";
+    Layout = "~/Views/Shared/_CustomerLayout.cshtml";
+}
+
+<div class="container py-4">
+    <div class="row g-4">
+        <!-- VENUE INFO CARD -->
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+                <h3 class="fw-bold text-dark mb-2">@Model.Title</h3>
+                <p class="text-muted"><i class="fas fa-user-tie text-success me-1"></i> Managed by <strong>@Model.AuthorName</strong></p>
+                <p class="text-secondary"><i class="fas fa-map-marker-alt text-danger me-1"></i> @Model.Location</p>
+
+                <hr />
+
+                <h5 class="fw-bold text-dark mb-3"><i class="fas fa-layer-group text-success me-2"></i> Seat Breakdown & Rates</h5>
+                <div class="table-responsive">
+                    <table class="table table-bordered bg-light rounded-3">
+                        <thead class="table-secondary">
+                            <tr>
+                                <th>Category</th>
+                                <th>Available Seats</th>
+                                <th>Rate per Seat</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var cat in Model.Categories)
+                            {
+                                <tr>
+                                    <td class="fw-semibold">@cat.CategoryName</td>
+                                    <td>@cat.TotalSeats Seats</td>
+                                    <td class="text-success fw-bold">৳@cat.PricePerSeat</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- BOOKING REQUEST FORM CARD -->
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+                <h5 class="fw-bold text-dark mb-3"><i class="fas fa-paper-plane text-success me-2"></i> Send Booking Request</h5>
+
+                <form asp-controller="Booking" asp-action="RequestBooking" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="itemId" value="@Model.PostId" />
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">Select Event Date</label>
+                        <input type="date" name="travelOrEventDate" class="form-control rounded-pill px-3 py-2" required min="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">Total Estimated Amount (BDT)</label>
+                        <input type="number" name="totalAmount" class="form-control rounded-pill px-3 py-2 fw-bold text-success" placeholder="e.g. 5000" required step="0.01" />
+                    </div>
+
+                    <div class="alert alert-info small rounded-3 mb-3">
+                        <i class="fas fa-info-circle me-1"></i> Your request will be sent to the seller. Once approved, you will have <strong>2 hours</strong> to complete the payment.
+                    </div>
+
+                    <button type="submit" class="btn btn-success w-100 rounded-pill py-2.5 fw-semibold shadow-sm">
+                        <i class="fas fa-paper-plane me-1"></i> Send Request to Seller
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
