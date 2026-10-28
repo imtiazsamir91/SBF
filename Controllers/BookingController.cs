@@ -1,12 +1,12 @@
-﻿using System.Data;
-using Microsoft.AspNetCore.Authorization;
+﻿using System;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using EBS.Models;
+using Microsoft.Extensions.Configuration;
 using Oracle.ManagedDataAccess.Client;
+using Microsoft.AspNetCore.Http;
 
 namespace EBS.Controllers
 {
-    [Authorize(Roles = "User")] // Only User role can request booking
     public class BookingController : Controller
     {
         private readonly IConfiguration _configuration;
@@ -16,82 +16,55 @@ namespace EBS.Controllers
             _configuration = configuration;
         }
 
-        [HttpGet]
-        public IActionResult Create(decimal itemId)
-        {
-            var model = new BookingRequestViewModel
-            {
-                ItemId = itemId,
-                TravelDate = DateTime.Today.AddDays(1)
-            };
-            return View(model);
-        }
-
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(BookingRequestViewModel model)
+        public async Task<IActionResult> CreateBooking(decimal itemId, decimal seatId, DateTime travelOrEventDate, decimal totalAmount)
         {
-            if (!ModelState.IsValid)
+            // ১. সেশন থেকে বর্তমান কাস্টমারের UserId নেওয়া
+            int? sessionUserId = HttpContext.Session.GetInt32("UserId");
+            if (!sessionUserId.HasValue || sessionUserId.Value <= 0)
             {
-                return View(model);
+                TempData["ErrorMessage"] = "Please login first to book a seat or venue.";
+                return RedirectToAction("Login", "Account");
             }
 
-           
-            var userIdClaim = User.FindFirst("UserId")?.Value;
-            if (string.IsNullOrEmpty(userIdClaim) || !decimal.TryParse(userIdClaim, out decimal userId))
-            {
-                // Fallback for testing / demo
-                userId = 1;
-            }
-
-           
+            int userId = sessionUserId.Value;
             string connString = _configuration.GetConnectionString("OracleDbContext")!;
 
-            using (var conn = new OracleConnection(connString))
+            try
             {
-                using (var cmd = new OracleCommand("IMTIAZ_SAMIR.BookingEnginePkg.LockSeatsForBooking", conn))
+                using (var conn = new OracleConnection(connString))
                 {
-                    cmd.CommandType = CommandType.StoredProcedure;
+                    await conn.OpenAsync();
 
-                    // IN Parameters
-                    cmd.Parameters.Add("p_UserId", OracleDbType.Decimal).Value = userId;
-                    cmd.Parameters.Add("p_ItemId", OracleDbType.Decimal).Value = model.ItemId;
-                    cmd.Parameters.Add("p_TravelDate", OracleDbType.Date).Value = model.TravelDate;
-                    cmd.Parameters.Add("p_SeatIdList", OracleDbType.Varchar2).Value = model.SeatIdList ?? string.Empty;
-                    cmd.Parameters.Add("p_SeatCount", OracleDbType.Int32).Value = model.SeatCount;
-                    cmd.Parameters.Add("p_RequestFullVenue", OracleDbType.Int32).Value = model.RequestFullVenue;
+                    // ২. আপনার দেওয়া আসল BOOKINGS টেবিলের কলাম অনুযায়ী ইনসার্ট কুয়েরি
+                    string insertQuery = @"
+                        INSERT INTO IMTIAZ_SAMIR.BOOKINGS 
+                        (BOOKINGID, USERID, ITEMID, SEATID, TRAVELOREVENTDATE, STATUS, TOTALAMOUNT, CREATEDAT, LOCKEXPIRESAT)
+                        VALUES 
+                        (IMTIAZ_SAMIR.seq_bookings.NEXTVAL, :p_UserId, :p_ItemId, :p_SeatId, :p_EventDate, 'PENDING', :p_TotalAmount, SYSTIMESTAMP, SYSTIMESTAMP + INTERVAL '30' MINUTE)";
 
-                    // OUT Parameter for Booking ID
-                    var pBookingId = new OracleParameter("p_BookingId", OracleDbType.Decimal, ParameterDirection.Output);
-                    cmd.Parameters.Add(pBookingId);
-
-                    try
+                    using (var cmd = new OracleCommand(insertQuery, conn))
                     {
-                        await conn.OpenAsync();
+                        cmd.BindByName = true;
+                        cmd.Parameters.Add("p_UserId", OracleDbType.Decimal).Value = userId;
+                        cmd.Parameters.Add("p_ItemId", OracleDbType.Decimal).Value = itemId;
+                        cmd.Parameters.Add("p_SeatId", OracleDbType.Decimal).Value = seatId;
+                        cmd.Parameters.Add("p_EventDate", OracleDbType.Date).Value = travelOrEventDate;
+                        cmd.Parameters.Add("p_TotalAmount", OracleDbType.Decimal).Value = totalAmount;
+
                         await cmd.ExecuteNonQueryAsync();
-
-                        decimal bookingId = 0;
-                        if (pBookingId.Value != DBNull.Value && pBookingId.Value != null)
-                        {
-                            bookingId = Convert.ToDecimal(pBookingId.Value.ToString());
-                        }
-
-                        TempData["SuccessMessage"] = $"Seats successfully locked for 10 minutes! Booking ID: {bookingId}";
-                        return RedirectToAction("Payment", "Checkout", new { bookingId = bookingId });
-                    }
-                    catch (OracleException ex)
-                    {
-                        // PL/SQL Package Error Catch (RAISE_APPLICATION_ERROR)
-                        ModelState.AddModelError(string.Empty, ex.Message);
-                        return View(model);
-                    }
-                    catch (Exception ex)
-                    {
-                        ModelState.AddModelError(string.Empty, "Booking failed: " + ex.Message);
-                        return View(model);
                     }
                 }
+
+                TempData["SuccessMessage"] = "Your seat booking request has been submitted successfully with PENDING status!";
             }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Failed to process booking: " + ex.Message;
+            }
+
+            return RedirectToAction("Timeline", "Community");
         }
     }
 }
