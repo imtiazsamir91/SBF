@@ -22,7 +22,7 @@ namespace EBS.Controllers
         // 1. GET: Customer Timeline (Directly from SellerCategory & SeatCategories)
         // ==========================================
         [HttpGet]
-        public async Task<IActionResult> Timeline()
+        public async Task<IActionResult> Timeline(string searchString, string locationFilter, int? starFilter)
         {
             var model = new CommunityFeedViewModel();
             string connString = _configuration.GetConnectionString("OracleDbContext")!;
@@ -31,32 +31,58 @@ namespace EBS.Controllers
             {
                 await conn.OpenAsync();
 
-                // ১. SellerCategory এবং AppUsers থেকে সঠিক কলাম (ServiceRating) সহ ডাটা ফেচ করা
                 string venueQuery = @"
-                    SELECT sc.SellerCatId, 
-                           sc.SellerId, 
-                           u.FullName AS SellerName, 
-                           sc.ItemName AS VenueTitle, 
-                           sc.ServiceRating,
-                           NVL((
-                               SELECT SUM(fs.SeatCapacity) 
-                               FROM IMTIAZ_SAMIR.ItemFloors f
-                               JOIN IMTIAZ_SAMIR.FloorSections fs ON f.FloorId = fs.FloorId
-                               WHERE f.SellerCatId = sc.SellerCatId
-                           ), 0) AS TotalCapacity,
-                           u.Address AS Location
-                    FROM IMTIAZ_SAMIR.SellerCategory sc
-                    JOIN IMTIAZ_SAMIR.AppUsers u ON sc.SellerId = u.UserId
-                    WHERE u.RoleId = 3
-                    ORDER BY sc.SellerCatId DESC";
+            SELECT sc.SellerCatId, sc.SellerId, u.FullName AS SellerName, sc.ItemName AS VenueTitle, 
+                   sc.ServiceRating,
+                   NVL((
+                       SELECT SUM(fs.SeatCapacity) 
+                       FROM IMTIAZ_SAMIR.ItemFloors f
+                       JOIN IMTIAZ_SAMIR.FloorSections fs ON f.FloorId = fs.FloorId
+                       WHERE f.SellerCatId = sc.SellerCatId
+                   ), 0) AS TotalCapacity,
+                   u.Address AS Location
+            FROM IMTIAZ_SAMIR.SellerCategory sc
+            JOIN IMTIAZ_SAMIR.AppUsers u ON sc.SellerId = u.UserId
+            WHERE u.RoleId = 3";
+
+                // ফিল্টারিং লজিক
+                if (!string.IsNullOrEmpty(searchString))
+                {
+                    venueQuery += " AND (LOWER(sc.ItemName) LIKE LOWER(:p_Search) OR LOWER(u.FullName) LIKE LOWER(:p_Search))";
+                }
+                if (!string.IsNullOrEmpty(locationFilter))
+                {
+                    venueQuery += " AND LOWER(u.Address) LIKE LOWER(:p_Location)";
+                }
+                if (starFilter.HasValue && starFilter.Value > 0)
+                {
+                    venueQuery += " AND LOWER(sc.ServiceRating) LIKE LOWER(:p_Star)";
+                }
+
+                venueQuery += " ORDER BY sc.SellerCatId DESC";
 
                 using (var cmd = new OracleCommand(venueQuery, conn))
                 {
+                    cmd.BindByName = true;
+                    if (!string.IsNullOrEmpty(searchString))
+                    {
+                        cmd.Parameters.Add("p_Search", OracleDbType.Varchar2).Value = $"%{searchString}%";
+                    }
+                    if (!string.IsNullOrEmpty(locationFilter))
+                    {
+                        cmd.Parameters.Add("p_Location", OracleDbType.Varchar2).Value = $"%{locationFilter}%";
+                    }
+                    if (starFilter.HasValue && starFilter.Value > 0)
+                    {
+                        cmd.Parameters.Add("p_Star", OracleDbType.Varchar2).Value = $"%{starFilter.Value}%";
+                    }
+
                     using (var reader = await cmd.ExecuteReaderAsync())
                     {
                         while (await reader.ReadAsync())
                         {
                             decimal sellerCatId = reader.GetDecimal(0);
+                            string rawRating = reader.IsDBNull(4) ? "3 Star" : reader.GetString(4);
 
                             var post = new PostItem
                             {
@@ -66,28 +92,32 @@ namespace EBS.Controllers
                                 AuthorRole = "SELLER",
                                 PostType = "SELLER_VENUE",
                                 Title = reader.GetString(3),
-                                Description = reader.IsDBNull(4) ? "A beautiful venue perfect for events." : $"Rating: {reader.GetString(4)} - A wonderful venue ready for your booking.",
-                                Capacity = Convert.ToInt32(reader.GetDecimal(5)),
+                                Description = $"Service Rating: {rawRating} - Premier venue for hosting special events.",
                                 Location = reader.IsDBNull(6) ? "Dhaka" : reader.GetString(6),
+                                Capacity = Convert.ToInt32(reader.GetDecimal(5)),
                                 CreatedDate = DateTime.Now,
                                 Categories = new List<SellerCategoryDetail>()
                             };
+
+                            // রেটিং থেকে নিউমেরিক স্টার পয়েন্ট পার্স করা (যেমন "5 Star" -> 5)
+                            var match = System.Text.RegularExpressions.Regex.Match(rawRating, @"\d+");
+                            post.Price = match.Success ? Convert.ToDecimal(match.Value) : 3; // Price ফিল্ডকে সাময়িকভাবে Rating ধারণে ব্যবহার করা হলো
 
                             model.Posts.Add(post);
                         }
                     }
                 }
 
-                // ২. প্রতিটি ভেন্যুর জন্য SeatCategories টেবিল থেকে সিট ক্যাটাগরি ও প্রাইস ব্রেকডাউন লোড করা
+                // সিট ক্যাটাগরি লোড
                 foreach (var post in model.Posts)
                 {
                     using (var catCmd = conn.CreateCommand())
                     {
                         catCmd.CommandText = @"
-                            SELECT CategoryName, TotalSeats, PricePerSeat
-                            FROM IMTIAZ_SAMIR.SeatCategories
-                            WHERE SellerCatId = :p_SellerCatId
-                            ORDER BY SeatCatId ASC";
+                    SELECT CategoryName, TotalSeats, PricePerSeat
+                    FROM IMTIAZ_SAMIR.SeatCategories
+                    WHERE SellerCatId = :p_SellerCatId
+                    ORDER BY SeatCatId ASC";
 
                         catCmd.Parameters.Add(new OracleParameter("p_SellerCatId", post.PostId));
 
