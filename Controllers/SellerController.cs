@@ -446,13 +446,14 @@ namespace EBS.Controllers
                 {
                     await conn.OpenAsync();
 
-                    string query = @"SELECT DISTINCT b.BookingId, u.FullName, u.Email, u.PhoneNumber, 
-                                            b.TravelOrEventDate, b.TotalAmount, b.Status, b.LockExpiresAt
-                                     FROM IMTIAZ_SAMIR.Bookings b
-                                     JOIN IMTIAZ_SAMIR.AppUsers u ON b.UserId = u.UserId
-                                     JOIN IMTIAZ_SAMIR.SellerCategory sc ON b.ItemId = sc.SellerCatId
-                                     WHERE sc.SellerId = :p_SellerId
-                                     ORDER BY b.BookingId DESC";
+                    string query = @"
+                SELECT DISTINCT r.REQUEST_ID, u.FullName, u.Email, u.PhoneNumber, 
+                       r.REQUEST_DATE, r.TOTAL_PRICE, r.STATUS, r.NOTES
+                FROM IMTIAZ_SAMIR.VENUE_BOOKING_REQUESTS r
+                JOIN IMTIAZ_SAMIR.AppUsers u ON r.USER_ID = u.UserId
+                JOIN IMTIAZ_SAMIR.SellerCategory sc ON r.SELLER_CAT_ID = sc.SellerCatId
+                WHERE sc.SellerId = :p_SellerId
+                ORDER BY r.REQUEST_ID DESC";
 
                     using (var cmd = new OracleCommand(query, conn))
                     {
@@ -463,6 +464,27 @@ namespace EBS.Controllers
                         {
                             while (await reader.ReadAsync())
                             {
+                                string notes = reader.IsDBNull(7) ? "" : reader.GetString(7);
+                                string extractedTime = "N/A";
+                                string extractedPurpose = "N/A";
+
+                                // নোটস থেকে টাইম ও পারপাস পার্স করে নেওয়া (যেমন: Date: ..., Time: 17:40 - 20:40, Purpose: wedding)
+                                if (!string.IsNullOrEmpty(notes))
+                                {
+                                    try
+                                    {
+                                        var parts = notes.Split(',');
+                                        foreach (var part in parts)
+                                        {
+                                            if (part.Trim().StartsWith("Time:"))
+                                                extractedTime = part.Replace("Time:", "").Trim();
+                                            if (part.Trim().StartsWith("Purpose:"))
+                                                extractedPurpose = part.Replace("Purpose:", "").Trim();
+                                        }
+                                    }
+                                    catch { }
+                                }
+
                                 model.Requests.Add(new BookingRequestDto
                                 {
                                     BookingId = reader.GetDecimal(0),
@@ -470,9 +492,11 @@ namespace EBS.Controllers
                                     CustomerEmail = reader.IsDBNull(2) ? "N/A" : reader.GetString(2),
                                     CustomerPhone = reader.IsDBNull(3) ? "N/A" : reader.GetString(3),
                                     TravelOrEventDate = reader.GetDateTime(4),
+                                    EventTime = extractedTime,
+                                    EventPurpose = extractedPurpose,
                                     TotalAmount = reader.IsDBNull(5) ? 0 : reader.GetDecimal(5),
-                                    Status = reader.GetString(6),
-                                    LockExpiresAt = reader.IsDBNull(7) ? DateTime.Now : reader.GetDateTime(7)
+                                    Status = reader.IsDBNull(6) ? "PENDING" : reader.GetString(6),
+                                    LockExpiresAt = DateTime.Now.AddHours(2)
                                 });
                             }
                         }
@@ -487,7 +511,6 @@ namespace EBS.Controllers
 
             return View(model);
         }
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ProcessRequest(decimal bookingId, string actionType, string? sellerNotes)
@@ -540,6 +563,7 @@ namespace EBS.Controllers
 
             return RedirectToAction(nameof(BookingRequests));
         }
+        
         // ==========================================
         // UPDATE SEAT CATEGORY
         // ==========================================

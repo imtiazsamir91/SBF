@@ -12,6 +12,8 @@
         public string CustomerEmail { get; set; } = string.Empty;
         public string CustomerPhone { get; set; } = string.Empty;
         public DateTime TravelOrEventDate { get; set; }
+        public string EventTime { get; set; } = string.Empty;    
+        public string EventPurpose { get; set; } = string.Empty;  
         public decimal TotalAmount { get; set; }
         public string Status { get; set; } = string.Empty;
         public DateTime LockExpiresAt { get; set; }

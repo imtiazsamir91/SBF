@@ -87,7 +87,7 @@ namespace EBS.Controllers
         // 2. POST: Submit Booking Request to Seller
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> RequestBooking(decimal itemId, DateTime travelOrEventDate, decimal totalAmount)
+        public async Task<IActionResult> RequestBooking(decimal itemId, int totalSeats, decimal totalAmount, string eventPurpose, DateTime travelOrEventDate, string startTime, string endTime)
         {
             int? sessionUserId = HttpContext.Session.GetInt32("UserId");
             if (!sessionUserId.HasValue || sessionUserId.Value <= 0)
@@ -99,36 +99,45 @@ namespace EBS.Controllers
             int userId = sessionUserId.Value;
             string connString = _configuration.GetConnectionString("OracleDbContext")!;
 
-            using (var conn = new OracleConnection(connString))
+            // নোটস এর মধ্যে ডেট, টাইম ও ইভেন্ট পারপাস গুছিয়ে রাখা
+            string fullNotes = $"Date: {travelOrEventDate:yyyy-MM-dd}, Time: {startTime} - {endTime}, Purpose: {eventPurpose}";
+
+            try
             {
-                await conn.OpenAsync();
-
-                // Check for available seat
-                decimal seatId = 31; // Default seat logic or fetch first available SeatId
-
-                string insertQuery = @"
-                    INSERT INTO IMTIAZ_SAMIR.BOOKINGS 
-                    (BOOKINGID, USERID, ITEMID, SEATID, TRAVELOREVENTDATE, STATUS, TOTALAMOUNT, CREATEDAT)
-                    VALUES 
-                    (IMTIAZ_SAMIR.seq_bookings.NEXTVAL, :p_UserId, :p_ItemId, :p_SeatId, :p_EventDate, 'PENDING', :p_TotalAmount, SYSTIMESTAMP)";
-
-                using (var cmd = new OracleCommand(insertQuery, conn))
+                using (var conn = new OracleConnection(connString))
                 {
-                    cmd.BindByName = true;
-                    cmd.Parameters.Add("p_UserId", OracleDbType.Decimal).Value = userId;
-                    cmd.Parameters.Add("p_ItemId", OracleDbType.Decimal).Value = itemId;
-                    cmd.Parameters.Add("p_SeatId", OracleDbType.Decimal).Value = seatId;
-                    cmd.Parameters.Add("p_EventDate", OracleDbType.Date).Value = travelOrEventDate;
-                    cmd.Parameters.Add("p_TotalAmount", OracleDbType.Decimal).Value = totalAmount;
+                    await conn.OpenAsync();
 
-                    await cmd.ExecuteNonQueryAsync();
+                    // নতুন VENUE_BOOKING_REQUESTS টেবিলে ইনসার্ট কুয়েরি (Item ID আসলে এখানে SellerCatId হিসেবে কাজ করছে)
+                    string insertQuery = @"
+                INSERT INTO IMTIAZ_SAMIR.VENUE_BOOKING_REQUESTS 
+                (REQUEST_ID, USER_ID, SELLER_CAT_ID, REQUEST_TYPE, TOTAL_SEATS, TOTAL_PRICE, STATUS, REQUEST_DATE, NOTES)
+                VALUES 
+                (IMTIAZ_SAMIR.seq_venue_booking_requests.NEXTVAL, :p_UserId, :p_SellerCatId, 'FULL_VENUE', :p_TotalSeats, :p_TotalPrice, 'PENDING', SYSDATE, :p_Notes)";
+
+                    using (var cmd = new OracleCommand(insertQuery, conn))
+                    {
+                        cmd.BindByName = true;
+                        cmd.Parameters.Add("p_UserId", OracleDbType.Decimal).Value = userId;
+                        cmd.Parameters.Add("p_SellerCatId", OracleDbType.Decimal).Value = itemId; // এখানে itemId হলো SellerCatId
+                        cmd.Parameters.Add("p_TotalSeats", OracleDbType.Decimal).Value = totalSeats > 0 ? totalSeats : 1;
+                        cmd.Parameters.Add("p_TotalPrice", OracleDbType.Decimal).Value = totalAmount;
+                        cmd.Parameters.Add("p_Notes", OracleDbType.Varchar2).Value = fullNotes;
+
+                        await cmd.ExecuteNonQueryAsync();
+                    }
                 }
+
+                TempData["SuccessMessage"] = "Venue booking request submitted successfully! Waiting for seller confirmation.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Booking failed: " + ex.Message;
             }
 
-            TempData["SuccessMessage"] = "Booking request submitted successfully! Waiting for seller confirmation.";
-            return RedirectToAction("MyBookings");
+            return RedirectToAction("Timeline", "Community");
         }
-
+        
         // 3. GET: Customer My Bookings Page (Shows Payment Option if Approved & Auto Cancel Handling)
         [HttpGet]
         public async Task<IActionResult> MyBookings()

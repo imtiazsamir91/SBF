@@ -43,7 +43,7 @@
                         <tr>
                             <th>Booking ID</th>
                             <th>Customer Details</th>
-                            <th>Event / Travel Date</th>
+                            <th>Event Date & Time</th>
                             <th>Total Amount</th>
                             <th>Status</th>
                             <th class="text-center">Actions</th>
@@ -63,24 +63,32 @@
                                     </td>
                                     <td>
                                         <div class="fw-bold text-dark"><i class="far fa-calendar-alt text-success me-1"></i>@item.TravelOrEventDate.ToString("dd MMM yyyy")</div>
+                                        @if (!string.IsNullOrEmpty(item.EventTime))
+                                        {
+                                            <div class="small text-muted mt-1"><i class="far fa-clock text-primary me-1"></i><strong>Time:</strong> @item.EventTime</div>
+                                        }
+                                        @if (!string.IsNullOrEmpty(item.EventPurpose))
+                                        {
+                                            <div class="small text-muted"><i class="fas fa-info-circle text-warning me-1"></i><strong>Purpose:</strong> @item.EventPurpose</div>
+                                        }
                                     </td>
                                     <td class="fw-bold text-success">৳@item.TotalAmount</td>
                                     <td>
-                                        @if (item.Status == "LOCKED")
+                                        @if (item.Status == "LOCKED" || item.Status == "PENDING")
                                         {
                                             <span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>Pending Approval</span>
                                         }
-                                        else if (item.Status == "CONFIRMED")
+                                        else if (item.Status == "CONFIRMED" || item.Status == "APPROVED" || item.Status == "ACCEPTED")
                                         {
-                                            <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Confirmed</span>
+                                            <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Approved / Confirmed</span>
                                         }
                                         else
                                         {
-                                            <span class="badge bg-danger"><i class="fas fa-times-circle me-1"></i>Cancelled</span>
+                                            <span class="badge bg-danger"><i class="fas fa-times-circle me-1"></i>@item.Status</span>
                                         }
                                     </td>
                                     <td class="text-center">
-                                        @if (item.Status == "LOCKED")
+                                        @if (item.Status == "LOCKED" || item.Status == "PENDING")
                                         {
                                             <div class="d-flex justify-content-center gap-2">
                                                 <!-- Accept Form -->
