@@ -19,7 +19,8 @@ namespace EBS.Controllers
         }
 
         // GET: My Venue Requests Page
-        public async Task<IActionResult> MyVenueRequests()
+        // GET: My Venue Requests Page
+        public async Task<IActionResult> MyVenueRequests(bool showExpired = false)
         {
             int? userIdNullable = HttpContext.Session.GetInt32("UserId");
             if (userIdNullable == null)
@@ -29,6 +30,7 @@ namespace EBS.Controllers
             }
             int userId = userIdNullable.Value;
 
+            ViewBag.ShowExpired = showExpired; // ভিউতে বাটনের স্টেট একটিভ রাখার জন্য
             var model = new CustomerVenueBookingViewModel();
             string connString = _configuration.GetConnectionString("OracleDbContext")!;
 
@@ -38,10 +40,14 @@ namespace EBS.Controllers
                 {
                     await conn.OpenAsync();
 
-                    // ১. Fetch Customer Requests (Safe Join with SEATCATEGORIES table)
+                    // ১. Fetch Customer Requests (showExpired এর ওপর ভিত্তি করে ফিল্টার)
                     using (var cmd = conn.CreateCommand())
                     {
-                        cmd.CommandText = @"
+                        string dateCondition = showExpired
+                            ? "AND r.REQUEST_DATE < TRUNC(SYSDATE)"
+                            : "AND r.REQUEST_DATE >= TRUNC(SYSDATE)";
+
+                        cmd.CommandText = $@"
                     SELECT r.REQUEST_ID, 
                            NVL(sc.CATEGORYNAME, 'General Venue') AS CATEGORY_NAME, 
                            NVL(r.TOTAL_SEATS, 0) AS TOTAL_SEATS, 
@@ -52,7 +58,8 @@ namespace EBS.Controllers
                     FROM IMTIAZ_SAMIR.VENUE_BOOKING_REQUESTS r
                     LEFT JOIN IMTIAZ_SAMIR.SEATCATEGORIES sc ON r.SELLER_CAT_ID = sc.SEATCATID
                     WHERE r.USER_ID = :userId
-                    ORDER BY r.REQUEST_ID DESC";
+                    {dateCondition}
+                    ORDER BY r.REQUEST_DATE DESC";
 
                         cmd.Parameters.Add(new OracleParameter("userId", userId));
 
@@ -122,21 +129,21 @@ namespace EBS.Controllers
                     await conn.OpenAsync();
                     using (var cmd = conn.CreateCommand())
                     {
-                        // টেবিলের আসল কলাম নাম (TOTALSEATS এবং PRICEPERSEAT) ব্যবহার করা হয়েছে
+                        // টেবিলের আসল কলাম নাম (TOTALSEATS এবং PRICEPERSEAT) ব্যবহার করে রিকোয়েস্ট ইনসার্ট
                         cmd.CommandText = @"
-                    INSERT INTO IMTIAZ_SAMIR.VENUE_BOOKING_REQUESTS 
-                    (REQUEST_ID, USER_ID, SELLER_CAT_ID, REQUEST_TYPE, TOTAL_SEATS, TOTAL_PRICE, STATUS, NOTES, REQUEST_DATE)
-                    SELECT IMTIAZ_SAMIR.seq_venue_booking_requests.NEXTVAL, 
-                           :userId, 
-                           sc.SEATCATID, 
-                           'FULL_VENUE', 
-                           NVL(sc.TOTALSEATS, 1), 
-                           NVL(sc.PRICEPERSEAT * sc.TOTALSEATS, 0), 
-                           'PENDING', 
-                           :notes, 
-                           SYSDATE
-                    FROM IMTIAZ_SAMIR.SEATCATEGORIES sc 
-                    WHERE sc.SEATCATID = :sellerCatId";
+                            INSERT INTO IMTIAZ_SAMIR.VENUE_BOOKING_REQUESTS 
+                            (REQUEST_ID, USER_ID, SELLER_CAT_ID, REQUEST_TYPE, TOTAL_SEATS, TOTAL_PRICE, STATUS, NOTES, REQUEST_DATE)
+                            SELECT IMTIAZ_SAMIR.seq_venue_booking_requests.NEXTVAL, 
+                                   :userId, 
+                                   sc.SEATCATID, 
+                                   'FULL_VENUE', 
+                                   NVL(sc.TOTALSEATS, 1), 
+                                   NVL(sc.PRICEPERSEAT * sc.TOTALSEATS, 0), 
+                                   'PENDING', 
+                                   :notes, 
+                                   SYSDATE
+                            FROM IMTIAZ_SAMIR.SEATCATEGORIES sc 
+                            WHERE sc.SEATCATID = :sellerCatId";
 
                         cmd.Parameters.Add(new OracleParameter("userId", userId));
                         cmd.Parameters.Add(new OracleParameter("notes", (object?)notes ?? DBNull.Value));
@@ -155,6 +162,7 @@ namespace EBS.Controllers
 
             return RedirectToAction(nameof(MyVenueRequests));
         }
+
         // POST: Cancel / Delete Request
         [HttpPost]
         [ValidateAntiForgeryToken]

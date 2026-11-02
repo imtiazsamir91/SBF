@@ -3,6 +3,7 @@
 @{
     ViewData["Title"] = "My Venue Booking Requests";
     Layout = "~/Views/Shared/_CustomerLayout.cshtml";
+    bool isExpiredTab = ViewBag.ShowExpired ?? false;
 }
 
 <div class="container-fluid px-4 py-3">
@@ -32,11 +33,25 @@
         </div>
     }
 
-    <!-- Requests Table -->
+    <!-- Requests Table Card -->
     <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white py-3">
-            <h5 class="fw-bold m-0 text-dark"><i class="fas fa-list me-2 text-primary"></i> My Booking Requests History</h5>
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <h5 class="fw-bold m-0 text-dark">
+                <i class="fas fa-list me-2 text-primary"></i> 
+                @(isExpiredTab ? "Expired Booking History" : "Active Booking Requests")
+            </h5>
+
+            <!-- Filter Buttons -->
+            <div class="btn-group btn-group-sm" role="group">
+                <a asp-action="MyVenueRequests" asp-route-showExpired="false" class="btn @(!isExpiredTab ? "btn-primary fw-bold" : "btn-outline-primary")">
+                    <i class="fas fa-calendar-check me-1"></i> Active Requests
+                </a>
+                <a asp-action="MyVenueRequests" asp-route-showExpired="true" class="btn @(isExpiredTab ? "btn-secondary fw-bold" : "btn-outline-secondary")">
+                    <i class="fas fa-history me-1"></i> Expired History
+                </a>
+            </div>
         </div>
+
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
@@ -47,7 +62,7 @@
                             <th>Total Seats</th>
                             <th>Total Price</th>
                             <th>Status</th>
-                            <th>Requested Date</th>
+                            <th>Requested / Event Date</th>
                             <th class="text-center">Actions</th>
                         </tr>
                     </thead>
@@ -56,33 +71,52 @@
                         {
                             foreach (var item in Model.MyRequests)
                             {
+                                bool isExpired = item.RequestDate.Date < DateTime.Now.Date;
+                                
                                 <tr>
-                                    <td class="fw-bold ps-4">#@item.RequestId</td>
-                                    <td><span class="fw-semibold text-dark">@item.VenueName</span></td>
+                                    <td class="fw-bold ps-4 text-primary">#@item.RequestId</td>
+                                    <td>
+                                        <div class="fw-semibold text-dark">@item.VenueName</div>
+                                        @if (!string.IsNullOrEmpty(item.Notes))
+                                        {
+                                            <div class="small text-muted"><i class="fas fa-info-circle me-1 text-info"></i>@item.Notes</div>
+                                        }
+                                    </td>
                                     <td><span class="badge bg-secondary">@item.TotalSeats Seats</span></td>
                                     <td class="text-success fw-bold">৳@item.TotalPrice.ToString("N2")</td>
                                     <td>
-                                        @if (item.Status == "PENDING")
+                                        @if (isExpired && item.Status == "PENDING")
                                         {
-                                            <span class="badge bg-warning text-dark px-2 py-1">Pending</span>
+                                            <span class="badge bg-secondary px-2 py-1"><i class="fas fa-history me-1"></i>Expired</span>
                                         }
-                                        else if (item.Status == "CONFIRMED")
+                                        else if (item.Status == "PENDING")
                                         {
-                                            <span class="badge bg-success px-2 py-1">Confirmed</span>
+                                            <span class="badge bg-warning text-dark px-2 py-1"><i class="fas fa-clock me-1"></i>Pending</span>
                                         }
-                                        else if (item.Status == "CANCELLED")
+                                        else if (item.Status == "CONFIRMED" || item.Status == "APPROVED" || item.Status == "ACCEPTED")
                                         {
-                                            <span class="badge bg-danger px-2 py-1">Cancelled</span>
+                                            <span class="badge bg-success px-2 py-1"><i class="fas fa-check-circle me-1"></i>Confirmed</span>
+                                        }
+                                        else if (item.Status == "CANCELLED" || item.Status == "REJECTED")
+                                        {
+                                            <span class="badge bg-danger px-2 py-1"><i class="fas fa-times-circle me-1"></i>@item.Status</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-info px-2 py-1">@item.Status</span>
                                         }
                                     </td>
-                                    <td>@item.RequestDate.ToString("yyyy-MM-dd hh:mm tt")</td>
+                                    <td>
+                                        <div class="fw-bold text-dark"><i class="far fa-calendar-alt text-success me-1"></i>@item.RequestDate.ToString("dd MMM yyyy")</div>
+                                        <div class="small text-muted">@item.RequestDate.ToString("hh:mm tt")</div>
+                                    </td>
                                     <td class="text-center">
-                                        @if (item.Status == "PENDING")
+                                        @if (item.Status == "PENDING" && !isExpired)
                                         {
                                             <form asp-action="CancelVenueRequest" method="post" onsubmit="return confirm('Are you sure you want to cancel this request?');" class="d-inline">
                                                 @Html.AntiForgeryToken()
                                                 <input type="hidden" name="requestId" value="@item.RequestId" />
-                                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger fw-bold">
                                                     <i class="fas fa-times me-1"></i> Cancel
                                                 </button>
                                             </form>
@@ -100,7 +134,7 @@
                             <tr>
                                 <td colspan="7" class="text-center py-5 text-muted">
                                     <i class="fas fa-folder-open fa-3x mb-3 text-secondary d-block"></i>
-                                    <h5>No venue booking requests found.</h5>
+                                    <h5 class="fw-bold">No @(isExpiredTab ? "expired" : "active") venue booking requests found.</h5>
                                     <p class="small">Click "Send Venue Request" to create a new reservation.</p>
                                 </td>
                             </tr>
@@ -120,7 +154,7 @@
                 <h5 class="modal-title fw-bold"><i class="fas fa-paper-plane me-2"></i> Request Venue Reservation</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form asp-action="SubmitVenueRequest" method="post">
+            <form asp-action="SubmitVenueRequest" method="post" onsubmit="return formatNotes();">
                 @Html.AntiForgeryToken()
                 <div class="modal-body p-4">
                     <div class="mb-3">
@@ -134,10 +168,34 @@
                         </select>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Special Notes</label>
-                        <textarea name="notes" class="form-control" rows="3" placeholder="Optional notes..."></textarea>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Event Date *</label>
+                            <input type="date" id="eventDate" class="form-control" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Purpose *</label>
+                            <input type="text" id="eventPurpose" class="form-control" placeholder="e.g. Wedding, Seminar" required />
+                        </div>
                     </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Start Time *</label>
+                            <input type="time" id="startTime" class="form-control" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">End Time *</label>
+                            <input type="time" id="endTime" class="form-control" required />
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Additional Remarks</label>
+                        <textarea id="additionalRemarks" class="form-control" rows="2" placeholder="Optional notes..."></textarea>
+                    </div>
+
+                    <input type="hidden" name="notes" id="finalNotes" />
                 </div>
                 <div class="modal-footer bg-light">
                     <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
@@ -147,3 +205,21 @@
         </div>
     </div>
 </div>
+
+<script>
+    function formatNotes() {
+        var date = document.getElementById('eventDate').value;
+        var startTime = document.getElementById('startTime').value;
+        var endTime = document.getElementById('endTime').value;
+        var purpose = document.getElementById('eventPurpose').value;
+        var remarks = document.getElementById('additionalRemarks').value;
+
+        var noteText = "Date: " + date + ", Time: " + startTime + " - " + endTime + ", Purpose: " + purpose;
+        if (remarks.trim() !== "") {
+            noteText += ", Remarks: " + remarks;
+        }
+
+        document.getElementById('finalNotes').value = noteText;
+        return true;
+    }
+</script>
