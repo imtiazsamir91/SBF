@@ -13,15 +13,15 @@ namespace EBS.Models
     {
         public decimal PostId { get; set; }
         public decimal AuthorId { get; set; }
-        public string AuthorName { get; set; }
-        public string AuthorRole { get; set; }
-        public string PostType { get; set; }
-        public string Title { get; set; }
-        public string Description { get; set; }
+        public string AuthorName { get; set; } = string.Empty;
+        public string AuthorRole { get; set; } = string.Empty; // CUSTOMER or SELLER
+        public string PostType { get; set; } = string.Empty;   // USER_REQUIREMENT or SELLER_VENUE
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
         public decimal? Budget { get; set; }
         public decimal? Price { get; set; }
         public int? Capacity { get; set; }
-        public string Location { get; set; }
+        public string Location { get; set; } = string.Empty;
         public DateTime CreatedDate { get; set; }
 
         // সেলারের সিট ক্যাটাগরি লিস্ট (VIP, Regular, Business)
@@ -30,17 +30,17 @@ namespace EBS.Models
 
     public class SellerCategoryDetail
     {
-        public string CategoryName { get; set; } // VIP, Regular, Business
+        public string CategoryName { get; set; } = string.Empty; // VIP, Regular, Business
         public int TotalSeats { get; set; }
         public decimal PricePerSeat { get; set; }
     }
 
     public class NewPostModel
     {
-        public string Title { get; set; }
-        public string Description { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
         public decimal? Budget { get; set; }
         public int? Capacity { get; set; }
-        public string Location { get; set; }
+        public string Location { get; set; } = string.Empty;
     }
 }

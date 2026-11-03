@@ -745,5 +745,57 @@ namespace EBS.Controllers
 
             return RedirectToAction(nameof(ManageSeatCategories));
         }
+        // GET: Seller/CommunityFeed
+        public async Task<IActionResult> CommunityFeed()
+        {
+            string connString = _configuration.GetConnectionString("OracleDbContext")!;
+            var posts = new List<CommunityPostViewModel>();
+
+            try
+            {
+                using (var conn = new OracleConnection(connString))
+                {
+                    await conn.OpenAsync();
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        // কাস্টমারদের তৈরি করা সব requirement পোস্ট সেলাররা দেখতে পাবে
+                        cmd.CommandText = @"
+                    SELECT POST_ID, AUTHOR_ID, AUTHOR_NAME, AUTHOR_ROLE, POST_TYPE, 
+                           TITLE, DESCRIPTION, BUDGET, PRICE, CAPACITY, LOCATION, CREATED_DATE
+                    FROM IMTIAZ_SAMIR.VENUE_COMMUNITY_POSTS
+                    WHERE POST_TYPE = 'USER_REQUIREMENT'
+                    ORDER BY CREATED_DATE DESC";
+
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                posts.Add(new CommunityPostViewModel
+                                {
+                                    PostId = reader.GetDecimal(0),
+                                    AuthorId = reader.GetDecimal(1),
+                                    AuthorName = reader.GetString(2),
+                                    AuthorRole = reader.GetString(3),
+                                    PostType = reader.GetString(4),
+                                    Title = reader.GetString(5),
+                                    Description = reader.IsDBNull(6) ? "" : reader.GetString(6),
+                                    Budget = reader.IsDBNull(7) ? null : reader.GetDecimal(7),
+                                    Price = reader.IsDBNull(8) ? null : reader.GetDecimal(8),
+                                    Capacity = reader.IsDBNull(9) ? null : Convert.ToInt32(reader.GetDecimal(9)),
+                                    Location = reader.IsDBNull(10) ? "" : reader.GetString(10),
+                                    CreatedDate = reader.GetDateTime(11)
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Error loading community feed: " + ex.Message;
+            }
+
+            return View(posts);
+        }
     }
 }
