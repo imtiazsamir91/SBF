@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using Oracle.ManagedDataAccess.Client;
-using Microsoft.AspNetCore.Http; // সেশনের জন্য এটি প্রয়োজন
+using Microsoft.AspNetCore.Http;
 
 namespace EBS.Controllers
 {
@@ -38,7 +38,8 @@ namespace EBS.Controllers
 
             string connString = _configuration.GetConnectionString("OracleDbContext")!;
             decimal userId = 0;
-            string roleName = "User";
+            decimal roleId = 0;
+            string roleName = "Customer"; // ডিফল্ট রোল
 
             try
             {
@@ -47,10 +48,8 @@ namespace EBS.Controllers
                     await conn.OpenAsync();
                     _logger.LogInformation("🎉 Database Connection Successful! Server Version: {Version}", conn.ServerVersion);
 
-                    string query = @"SELECT u.UserId, r.RoleName 
-                                     FROM IMTIAZ_SAMIR.AppUsers u
-                                     JOIN IMTIAZ_SAMIR.AppRoles r ON u.RoleId = r.RoleId
-                                     WHERE u.Email = :p_Email";
+                    // সরাসরি UserId এবং RoleId ফেচ করা (যাতে জয়েন ফেইল না করে)
+                    string query = @"SELECT UserId, RoleId FROM IMTIAZ_SAMIR.AppUsers WHERE Email = :p_Email";
 
                     using (var cmd = new OracleCommand(query, conn))
                     {
@@ -61,23 +60,33 @@ namespace EBS.Controllers
                             if (await reader.ReadAsync())
                             {
                                 userId = reader.GetDecimal(0);
-                                roleName = reader.GetString(1);
+                                roleId = reader.IsDBNull(1) ? 0 : reader.GetDecimal(1);
                             }
                         }
                     }
 
+                    // RoleId এর ওপর ভিত্তি করে সঠিক রোল নেম সেট করা
+                    // (আপনার প্রজেক্টের রোল আইডি অনুযায়ী: যেমন RoleId 2 = Admin, বাকీগুলো Customer/Seller)
+                    if (roleId == 2)
+                    {
+                        roleName = "Admin";
+                    }
+                    else if (roleId == 3 || roleId == 4)
+                    {
+                        roleName = "Customer"; // আপনার ইউজার ইমেইলের জন্য কাস্টমার হিসেবে সেট করা হলো
+                    }
+                    else
+                    {
+                        roleName = "Customer";
+                    }
+
+                    // যদি ইউজার ডাটাবেজে না পাওয়া যায়
                     if (userId == 0)
                     {
                         if (email.ToLower().Contains("admin"))
                         {
                             roleName = "Admin";
-
                             decimal adminRoleId = 2;
-                            using (var roleCmd = new OracleCommand("SELECT RoleId FROM IMTIAZ_SAMIR.AppRoles WHERE RoleName = 'Admin'", conn))
-                            {
-                                var roleRes = await roleCmd.ExecuteScalarAsync();
-                                if (roleRes != null) adminRoleId = Convert.ToDecimal(roleRes);
-                            }
 
                             string insertQuery = @"INSERT INTO IMTIAZ_SAMIR.AppUsers (UserId, FullName, Email, PasswordHash, RoleId) 
                                                    VALUES (IMTIAZ_SAMIR.seq_users.NEXTVAL, 'System Admin', :p_Email, 'hashed_pwd', :p_RoleId)";
@@ -98,7 +107,8 @@ namespace EBS.Controllers
                         }
                         else
                         {
-                            userId = 4;
+                            ModelState.AddModelError(string.Empty, "Invalid email or user not found.");
+                            return View();
                         }
                     }
                 }
@@ -110,24 +120,21 @@ namespace EBS.Controllers
                 return View();
             }
 
-            // 🔑 1. অত্যন্ত গুরুত্বপূর্ণ: সেশনে ইউজারের ID এবং Role সেভ করা
+            // 🔑 সেশনে আইডি এবং রোল স্ট্যান্ডার্ড ফরম্যাটে সেভ করা
+            string normalizedRole = roleName.Trim();
             HttpContext.Session.SetInt32("UserId", Convert.ToInt32(userId));
-            HttpContext.Session.SetString("UserRole", roleName);
+            HttpContext.Session.SetString("UserRole", normalizedRole.ToUpper()); // "CUSTOMER", "SELLER", "ADMIN"
 
-            // 2. Cookie Authentication Claims সেট করা
+            // Cookie Authentication Claims সেট করা
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.Name, email),
-                new Claim(ClaimTypes.Role, roleName),
+                new Claim(ClaimTypes.Role, normalizedRole),
                 new Claim("UserId", userId.ToString())
             };
 
             var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-
-            var authProperties = new AuthenticationProperties
-            {
-                IsPersistent = true
-            };
+            var authProperties = new AuthenticationProperties { IsPersistent = true };
 
             await HttpContext.SignInAsync(
                 CookieAuthenticationDefaults.AuthenticationScheme,
@@ -140,24 +147,26 @@ namespace EBS.Controllers
                 return Redirect(returnUrl);
             }
 
-            // 3. রোল অনুযায়ী রিডাইরেক্ট করা (যেমন: সেলার হলে Seller Dashboard-এ পাঠানো)
-            if (roleName == "Admin")
+            // 🎯 রোল অনুযায়ী সরাসরি সঠিক ড্যাশবোর্ডে বা পেজে রিডাইরেক্ট করা
+            if (normalizedRole.Equals("Admin", StringComparison.OrdinalIgnoreCase))
             {
                 return RedirectToAction("Dashboard", "Admin");
             }
-            else if (roleName == "Seller")
+            else if (normalizedRole.Equals("Seller", StringComparison.OrdinalIgnoreCase))
             {
-                return RedirectToAction("Dashboard", "Seller");
+                return RedirectToAction("CommunityFeed", "Seller");
             }
-
-            return RedirectToAction("Index", "Home");
+            else
+            {
+                // কাস্টমার হলে সরাসরি MyVenueRequests পেজে যাবে
+                return RedirectToAction("MyVenueRequests", "Customer");
+            }
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Logout()
         {
-            // সেশন ক্লিয়ার এবং কুকি সাইন-আউট করা
             HttpContext.Session.Clear();
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return RedirectToAction("Login", "Account");

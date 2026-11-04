@@ -3,7 +3,7 @@ using Oracle.ManagedDataAccess.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
-
+// Add services to the container.
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
@@ -11,7 +11,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
     });
 
-
+// 1. Session Services Configuration
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
@@ -22,20 +22,17 @@ builder.Services.AddSession(options =>
 
 var connectionString = builder.Configuration.GetConnectionString("OracleDbContext");
 
-
 if (string.IsNullOrEmpty(connectionString))
 {
     throw new InvalidOperationException("❌ Connection string 'OracleDbContext' not found in appsettings.json!");
 }
 
-
 builder.Services.AddSingleton(connectionString);
-
 builder.Services.AddControllersWithViews();
 
 var app = builder.Build();
 
-
+// Database Connection Test on Startup
 try
 {
     using (var testConnection = new OracleConnection(connectionString))
@@ -60,9 +57,10 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
+// 🔑 2. অত্যন্ত গুরুত্বপূর্ণ অর্ডার: UseSession() অবশ্যই UseAuthentication() এর আগে থাকতে হবে!
+app.UseSession();
 
 app.UseAuthentication();
-app.UseSession(); 
 app.UseAuthorization();
 
 app.MapControllerRoute(

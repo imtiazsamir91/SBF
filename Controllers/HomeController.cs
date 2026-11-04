@@ -1,5 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Oracle.ManagedDataAccess.Client;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
 namespace EBS.Controllers
 {
@@ -16,14 +17,37 @@ namespace EBS.Controllers
 
         public IActionResult Index()
         {
-            return View();
+            // ১. সেশন থেকে ইউজার আইডি এবং রোল চেক করা
+            int? userId = HttpContext.Session.GetInt32("UserId");
+            string userRole = HttpContext.Session.GetString("UserRole") ?? "";
+
+            // ২. যদি ইউজার লগইন করা থাকে, তবে রোল অনুযায়ী সঠিক ড্যাশবোর্ডে পাঠাবে
+            if (userId != null && !string.IsNullOrEmpty(userRole))
+            {
+                // কাস্টমার হলে
+                if (userRole.Equals("CUSTOMER", StringComparison.OrdinalIgnoreCase))
+                {
+                    return RedirectToAction("MyVenueRequests", "Customer");
+                }
+                // সেলার হলে
+                else if (userRole.Equals("SELLER", StringComparison.OrdinalIgnoreCase))
+                {
+                    return RedirectToAction("CommunityFeed", "Seller");
+                }
+                // অ্যাডমিন হলে
+                else if (userRole.Equals("ADMIN", StringComparison.OrdinalIgnoreCase) || userRole.Equals("ADMINISTRATOR", StringComparison.OrdinalIgnoreCase))
+                {
+                    return RedirectToAction("Dashboard", "Admin");
+                }
+            }
+
+            // ৩. ইউজার লগইন করা না থাকলে সরাসরি লগইন পেজে রিডাইরেক্ট করবে
+            return RedirectToAction("Login", "Account");
         }
 
-        
         [HttpGet("test-db")]
         public async Task<IActionResult> TestDatabaseConnection()
         {
-           
             string connString = _configuration.GetConnectionString("OracleDbContext")!;
 
             if (string.IsNullOrEmpty(connString))
@@ -33,7 +57,7 @@ namespace EBS.Controllers
 
             try
             {
-                using (var conn = new OracleConnection(connString))
+                using (var conn = new Oracle.ManagedDataAccess.Client.OracleConnection(connString))
                 {
                     await conn.OpenAsync();
                     string dbVersion = conn.ServerVersion;
