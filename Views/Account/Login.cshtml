@@ -1,34 +1,96 @@
 ﻿@{
-    ViewData["Title"] = "Login";
+    ViewData["Title"] = "Login - Event & Venue Booking System";
+    Layout = "_Layout"; // অথবা আপনার যদি নিজস্ব লেআউট বা ফাঁকা লেআউট থাকে
 }
 
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-5">
-            <div class="card shadow-sm">
-                <div class="card-header bg-dark text-white text-center">
-                    <h3> Login</h3>
+<div class="container-fluid vh-100 d-flex flex-column justify-content-center align-items-center bg-light overflow-hidden m-0 p-0">
+    <div class="row justify-content-center align-items-center w-100">
+        <div class="col-md-4 col-lg-3">
+            <!-- Brand or App Header -->
+            <div class="text-center mb-4">
+                <div class="bg-primary text-white d-inline-flex align-items-center justify-content-center rounded-circle mb-3 shadow-sm" style="width: 55px; height: 55px;">
+                    <i class="fas fa-calendar-alt fa-xl"></i>
                 </div>
-                <div class="card-body">
+                <h3 class="fw-bold text-dark mb-1">Vanue Booking Portal</h3>
+                <p class="text-muted small">Please sign in to continue</p>
+            </div>
+
+            <!-- Card Container -->
+            <div class="card border-0 shadow-lg rounded-4 p-2 bg-white">
+                <div class="card-body p-4">
                     <form asp-action="Login" method="post">
                         <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
 
-                        <div class="mb-3">
-                            <label class="form-label">Email address</label>
-                            <input type="email" name="email" class="form-control" value="user@example.com" required />
-                        </div>
+                        <!-- Validation Summary / Error Message -->
+                        <div asp-validation-summary="ModelOnly" class="text-danger small mb-3 text-center"></div>
 
                         <div class="mb-3">
-                            <label class="form-label">Password</label>
-                            <input type="password" name="password" class="form-control" value="password" required />
+                            <label class="form-label fw-semibold text-secondary small">Email Address</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0 rounded-start-pill ps-3 text-muted">
+                                    <i class="fas fa-envelope"></i>
+                                </span>
+                                <input type="email" name="email" class="form-control bg-light border-start-0 rounded-end-pill py-2" placeholder="name@example.com" required />
+                            </div>
                         </div>
 
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">Login & Proceed to Booking</button>
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold text-secondary small mb-1">Password</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0 rounded-start-pill ps-3 text-muted">
+                                    <i class="fas fa-lock"></i>
+                                </span>
+                                <input type="password" name="password" class="form-control bg-light border-start-0 rounded-end-pill py-2" placeholder="••••••••" required />
+                            </div>
+                        </div>
+
+                        <div class="d-grid mb-3">
+                            <button type="submit" class="btn btn-primary btn-lg rounded-pill fw-semibold shadow-sm py-2">
+                                <i class="fas fa-sign-in-alt me-2"></i> Sign In
+                            </button>
                         </div>
                     </form>
                 </div>
             </div>
+
+            <!-- Register & Home Links -->
+            <div class="text-center mt-3">
+                <p class="text-muted small mb-1">
+                    Don't have an account?
+                    <a href="@Url.Action("Register", "Account")" class="text-primary fw-semibold text-decoration-none">
+                        Create an account <i class="fas fa-arrow-right ms-1 small"></i>
+                    </a>
+                </p>
+                <a href="@Url.Action("Index", "Home")" class="text-muted small text-decoration-none">
+                    <i class="fas fa-home me-1"></i> Back to Home
+                </a>
+            </div>
         </div>
     </div>
 </div>
+
+<style>
+    /* অতিরিক্ত স্ক্রলবার রিমুভ করার জন্য */
+    html, body {
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background-color: #f8f9fa;
+    }
+
+    .form-control:focus {
+        background-color: #fff !important;
+        box-shadow: none;
+        border-color: #86b7fe;
+    }
+
+    .input-group-text {
+        border-top-left-radius: 50rem !important;
+        border-bottom-left-radius: 50rem !important;
+    }
+
+    .form-control.rounded-end-pill {
+        border-top-right-radius: 50rem !important;
+        border-bottom-right-radius: 50rem !important;
+    }
+</style>
