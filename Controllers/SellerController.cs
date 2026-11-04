@@ -746,10 +746,11 @@ namespace EBS.Controllers
             return RedirectToAction(nameof(ManageSeatCategories));
         }
         // GET: Seller/CommunityFeed
+        // GET: Seller/CommunityFeed
         public async Task<IActionResult> CommunityFeed()
         {
             string connString = _configuration.GetConnectionString("OracleDbContext")!;
-            var posts = new List<CommunityPostViewModel>();
+            var posts = new List<PostItem>(); // <--- PostItem ব্যবহার করা হয়েছে
 
             try
             {
@@ -758,7 +759,6 @@ namespace EBS.Controllers
                     await conn.OpenAsync();
                     using (var cmd = conn.CreateCommand())
                     {
-                        // কাস্টমারদের তৈরি করা সব requirement পোস্ট সেলাররা দেখতে পাবে
                         cmd.CommandText = @"
                     SELECT POST_ID, AUTHOR_ID, AUTHOR_NAME, AUTHOR_ROLE, POST_TYPE, 
                            TITLE, DESCRIPTION, BUDGET, PRICE, CAPACITY, LOCATION, CREATED_DATE
@@ -770,7 +770,7 @@ namespace EBS.Controllers
                         {
                             while (await reader.ReadAsync())
                             {
-                                posts.Add(new CommunityPostViewModel
+                                posts.Add(new PostItem // <--- PostItem অবজেক্ট তৈরি করা হচ্ছে
                                 {
                                     PostId = reader.GetDecimal(0),
                                     AuthorId = reader.GetDecimal(1),
