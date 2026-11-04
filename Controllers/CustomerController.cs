@@ -199,6 +199,7 @@ namespace EBS.Controllers
             return RedirectToAction(nameof(MyVenueRequests));
         }
         // GET: Customer/MyCommunityPosts
+        // GET: Customer/MyCommunityPosts
         public async Task<IActionResult> MyCommunityPosts()
         {
             int? userIdNullable = HttpContext.Session.GetInt32("UserId");
@@ -210,7 +211,7 @@ namespace EBS.Controllers
             int userId = userIdNullable.Value;
 
             string connString = _configuration.GetConnectionString("OracleDbContext")!;
-            var myPosts = new List<CommunityPostViewModel>();
+            var myPosts = new List<PostItem>(); // 🔑 এখানে CommunityPostViewModel এর বদলে PostItem ব্যবহার করা হয়েছে
 
             try
             {
@@ -219,7 +220,6 @@ namespace EBS.Controllers
                     await conn.OpenAsync();
                     using (var cmd = conn.CreateCommand())
                     {
-                        // শুধুমাত্র লগইন করা ইউজারের (AUTHOR_ID) পোস্ট লোড হবে
                         cmd.CommandText = @"
                     SELECT POST_ID, AUTHOR_ID, AUTHOR_NAME, AUTHOR_ROLE, POST_TYPE, 
                            TITLE, DESCRIPTION, BUDGET, PRICE, CAPACITY, LOCATION, CREATED_DATE
@@ -233,7 +233,7 @@ namespace EBS.Controllers
                         {
                             while (await reader.ReadAsync())
                             {
-                                myPosts.Add(new CommunityPostViewModel
+                                myPosts.Add(new PostItem // 🔑 PostItem অবজেক্ট ইনিশিয়ালাইজ করা হচ্ছে
                                 {
                                     PostId = reader.GetDecimal(0),
                                     AuthorId = reader.GetDecimal(1),
