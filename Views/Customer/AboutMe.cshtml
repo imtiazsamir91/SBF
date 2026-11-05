@@ -1,0 +1,83 @@
+﻿@model EBS.Models.UserProfileViewModel
+@{
+    ViewData["Title"] = "About Me - Profile";
+    Layout = "~/Views/Shared/_CustomerLayout.cshtml";
+}
+
+<div class="container-fluid py-4">
+    <div class="row g-4 justify-content-center">
+        <!-- Left Column: User Profile Card -->
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm rounded-4 text-center p-4 bg-white h-100">
+                <div class="card-body">
+                    <!-- Profile Avatar -->
+                    <div class="position-relative d-inline-block mb-3">
+                        <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center mx-auto shadow-sm" style="width: 110px; height: 110px;">
+                            <i class="fas fa-user-circle fa-5x"></i>
+                        </div>
+                        <span class="position-absolute bottom-0 end-0 bg-success border border-white border-3 rounded-circle p-2" title="Active Account"></span>
+                    </div>
+
+                    <h4 class="fw-bold text-dark mb-1">@Model.FullName</h4>
+                    <p class="text-muted small mb-3">
+                        <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill fw-semibold">
+                            <i class="fas fa-user-shield me-1"></i> @Model.RoleName
+                        </span>
+                    </p>
+
+                    <hr class="my-4 text-muted opacity-25">
+
+                    <!-- Contact Details -->
+                    <div class="text-start">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-light text-primary p-2 rounded-circle me-3">
+                                <i class="fas fa-envelope"></i>
+                            </div>
+                            <div class="text-truncate">
+                                <small class="text-muted d-block">Email Address</small>
+                                <span class="fw-semibold text-dark small">@Model.Email</span>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-light text-success p-2 rounded-circle me-3">
+                                <i class="fas fa-phone-alt"></i>
+                            </div>
+                            <div>
+                                <small class="text-muted d-block">Phone Number</small>
+                                <span class="fw-semibold text-dark small">@Model.PhoneNumber</span>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-light text-danger p-2 rounded-circle me-3">
+                                <i class="fas fa-map-marker-alt"></i>
+                            </div>
+                            <div>
+                                <small class="text-muted d-block">Location / Address</small>
+                                <span class="fw-semibold text-dark small">@Model.Address, @Model.City</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Bio & Platform Summary -->
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+                <div class="card-body">
+                    <h5 class="fw-bold text-dark mb-3">
+                        <i class="fas fa-user-tag text-primary me-2"></i> Profile Overview & Bio
+                    </h5>
+                    <p class="text-muted leading-relaxed">
+                        Hello! I am <strong>@Model.FullName</strong>, registered on the <strong>Event & Venue Booking System (EBS)</strong> platform under the <strong>@Model.RoleName</strong> role.
+                    </p>
+                    <p class="text-muted leading-relaxed mb-0">
+                        I use this portal to manage my venue reservations, create event requests, and interact directly with service providers in real-time.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

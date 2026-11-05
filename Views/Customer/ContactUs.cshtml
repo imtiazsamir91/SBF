@@ -1,0 +1,110 @@
+﻿@{
+    ViewData["Title"] = "Contact Us";
+    Layout = "~/Views/Shared/_CustomerLayout.cshtml"; // আপনার কাস্টমার লেআউট পাথ অনুযায়ী এটি পরিবর্তন করে নিতে পারেন
+}
+
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Header Section -->
+            <div class="text-center mb-5">
+                <h2 class="fw-bold text-dark"><i class="fas fa-headset text-primary me-2"></i> Get in Touch</h2>
+                <p class="text-muted">Have any questions or need support? Reach out to us directly through the form or call us.</p>
+            </div>
+
+            <!-- Alert Messages -->
+            @if (TempData["SuccessMessage"] != null)
+            {
+                <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+                    <i class="fas fa-check-circle me-2"></i> @TempData["SuccessMessage"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+            @if (TempData["ErrorMessage"] != null)
+            {
+                <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+                    <i class="fas fa-exclamation-circle me-2"></i> @TempData["ErrorMessage"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+
+            <div class="row g-4">
+                <!-- Contact Form Column -->
+                <div class="col-md-7">
+                    <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+                        <h5 class="fw-bold mb-3 text-secondary">Send us a Message</h5>
+                        <form asp-action="ContactUs" method="post">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold small">Your Name</label>
+                                <input type="text" name="name" class="form-control bg-light" placeholder="Enter your full name" required />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold small">Your Email Address</label>
+                                <input type="email" name="email" class="form-control bg-light" placeholder="name@example.com" required />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold small">Subject</label>
+                                <input type="text" name="subject" class="form-control bg-light" placeholder="What is this about?" required />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold small">Message</label>
+                                <textarea name="message" rows="4" class="form-control bg-light" placeholder="Write your message here..." required></textarea>
+                            </div>
+
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary py-2 fw-semibold rounded-pill shadow-sm">
+                                    <i class="fas fa-paper-plane me-2"></i> Send Message
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Direct Contact Info Column -->
+                <div class="col-md-5">
+                    <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100 d-flex flex-column justify-content-between">
+                        <div>
+                            <h5 class="fw-bold mb-4 text-secondary">Contact Information</h5>
+
+                            <!-- Email Info -->
+                            <div class="d-flex align-items-start mb-4">
+                                <div class="bg-primary bg-opacity-10 text-primary p-3 rounded-circle me-3">
+                                    <i class="fas fa-envelope fa-lg"></i>
+                                </div>
+                                <div>
+                                    <h6 class="fw-bold mb-1 text-dark">Email Us</h6>
+                                    <a href="mailto:imtiazsamir91@gmail.com" class="text-decoration-none text-muted small">
+                                        imtiazsamir91@gmail.com
+                                    </a>
+                                </div>
+                            </div>
+
+                            <!-- Phone Info -->
+                            <div class="d-flex align-items-start mb-4">
+                                <div class="bg-success bg-opacity-10 text-success p-3 rounded-circle me-3">
+                                    <i class="fas fa-phone-alt fa-lg"></i>
+                                </div>
+                                <div>
+                                    <h6 class="fw-bold mb-1 text-dark">Call Us</h6>
+                                    <a href="tel:01733568145" class="text-decoration-none text-muted small fw-semibold">
+                                        01733568145
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Extra Support Note -->
+                        <div class="bg-light p-3 rounded-3 mt-4">
+                            <p class="text-muted small mb-0">
+                                <i class="fas fa-info-circle text-primary me-1"></i> Support available Saturday to Thursday from 10:00 AM to 8:00 PM.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -22,7 +22,7 @@
         /* ফিক্সড সাইডবার এবং মেইন কন্টেন্ট লেআউট */
         .wrapper {
             display: flex;
-            height: calc(100vh - 56px); /* টপ নেভবার বাদ দিয়ে বাকি উচ্চতা */
+            height: calc(100vh - 56px); /* টপ নেভবার বাদ দিয়ে বাকি উচ্চতা */
         }
 
         .sidebar {
@@ -46,7 +46,7 @@
                     background-color: #e7f3ff;
                     color: #0d6efd;
                 }
-        /* কেবল এই মেইন কন্টেন্ট এরিয়াটিই ফেসবুকের মতো স্ক্রোল হবে */
+        /* কেবল এই মেইন কন্টেন্ট এরিয়াটিই ফেসবুকের মতো স্ক্রোল হবে */
         .main-content-scrollable {
             flex-grow: 1;
             height: 100%;
@@ -72,9 +72,13 @@
                             <i class="fas fa-user-circle me-1"></i> Imtiaz Samir
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2 text-muted"></i> Profile</a></li>
+                            <li><a class="dropdown-item" asp-controller="Customer" asp-action="AboutMe"><i class="fas fa-user me-2 text-muted"></i> About Me</a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item text-danger" href="#"><i class="fas fa-sign-out-alt me-2"></i> Logout</a></li>
+                            <li>
+                                <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
+                                    <button type="submit" class="dropdown-item text-danger"><i class="fas fa-sign-out-alt me-2"></i> Logout</button>
+                                </form>
+                            </li>
                         </ul>
                     </li>
                 </ul>
@@ -94,18 +98,23 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link active" asp-controller="Community" asp-action="Timeline">
+                    <a class="nav-link" asp-controller="Customer" asp-action="MyCommunityPosts">
+                        <i class="fas id-card me-2"></i> My Community Posts
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" asp-controller="Community" asp-action="Timeline">
                         <i class="fas fa-stream me-2"></i> Community Feed
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#">
-                        <i class="fas fa-calendar-check me-2"></i> My Bookings
+                    <a class="nav-link" asp-controller="Customer" asp-action="AboutMe">
+                        <i class="fas fa-user-circle me-2"></i> About Me
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#">
-                        <i class="fas fa-wallet me-2"></i> Payments
+                    <a class="nav-link" asp-controller="Customer" asp-action="ContactUs">
+                        <i class="fas fa-envelope me-2"></i> Contact Us
                     </a>
                 </li>
             </ul>
