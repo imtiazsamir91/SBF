@@ -99,16 +99,16 @@ namespace EBS.Controllers
                                 Categories = new List<SellerCategoryDetail>()
                             };
 
-                            // রেটিং থেকে নিউমেরিক স্টার পয়েন্ট পার্স করা (যেমন "5 Star" -> 5)
+                            
                             var match = System.Text.RegularExpressions.Regex.Match(rawRating, @"\d+");
-                            post.Price = match.Success ? Convert.ToDecimal(match.Value) : 3; // Price ফিল্ডকে সাময়িকভাবে Rating ধারণে ব্যবহার করা হলো
+                            post.Price = match.Success ? Convert.ToDecimal(match.Value) : 3; 
 
                             model.Posts.Add(post);
                         }
                     }
                 }
 
-                // সিট ক্যাটাগরি লোড
+                
                 foreach (var post in model.Posts)
                 {
                     using (var catCmd = conn.CreateCommand())
@@ -240,6 +240,79 @@ namespace EBS.Controllers
 
             TempData["SuccessMessage"] = "Your venue requirement post has been published successfully!";
             return RedirectToAction(nameof(Timeline));
+        }
+        // POST: Customer/DeleteCommunityPost
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteCommunityPost(decimal postId)
+        {
+            int? userIdNullable = HttpContext.Session.GetInt32("UserId");
+            if (userIdNullable == null) return RedirectToAction("Login", "Account");
+
+            string connString = _configuration.GetConnectionString("OracleDbContext")!;
+            try
+            {
+                using (var conn = new OracleConnection(connString))
+                {
+                    await conn.OpenAsync();
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        // ইউজার শুধুমাত্র নিজের পোস্টই ডিলেট করতে পারবে
+                        cmd.CommandText = "DELETE FROM IMTIAZ_SAMIR.VENUE_COMMUNITY_POSTS WHERE POST_ID = :postId AND AUTHOR_ID = :userId";
+                        cmd.Parameters.Add(new OracleParameter("postId", postId));
+                        cmd.Parameters.Add(new OracleParameter("userId", userIdNullable.Value));
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                }
+                TempData["SuccessMessage"] = "Post deleted successfully!";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Error deleting post: " + ex.Message;
+            }
+
+            return RedirectToAction("MyCommunityPosts");
+        }
+
+        // POST: Customer/UpdateResponseStatus (Confirm / Delete Response)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateResponseStatus(decimal responseId, string status)
+        {
+            int? userIdNullable = HttpContext.Session.GetInt32("UserId");
+            if (userIdNullable == null) return RedirectToAction("Login", "Account");
+
+            string connString = _configuration.GetConnectionString("OracleDbContext")!;
+            try
+            {
+                using (var conn = new OracleConnection(connString))
+                {
+                    await conn.OpenAsync();
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        if (status.Equals("CONFIRMED", StringComparison.OrdinalIgnoreCase))
+                        {
+                            cmd.CommandText = "UPDATE IMTIAZ_SAMIR.VENUE_COMMUNITY_RESPONSES SET STATUS = 'CONFIRMED' WHERE RESPONSE_ID = :responseId";
+                            cmd.Parameters.Add(new OracleParameter("responseId", responseId));
+                            await cmd.ExecuteNonQueryAsync();
+                            TempData["SuccessMessage"] = "Seller proposal confirmed!";
+                        }
+                        else if (status.Equals("DELETE", StringComparison.OrdinalIgnoreCase))
+                        {
+                            cmd.CommandText = "DELETE FROM IMTIAZ_SAMIR.VENUE_COMMUNITY_RESPONSES WHERE RESPONSE_ID = :responseId";
+                            cmd.Parameters.Add(new OracleParameter("responseId", responseId));
+                            await cmd.ExecuteNonQueryAsync();
+                            TempData["SuccessMessage"] = "Seller response removed.";
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Error: " + ex.Message;
+            }
+
+            return RedirectToAction("MyCommunityPosts");
         }
     }
 }
