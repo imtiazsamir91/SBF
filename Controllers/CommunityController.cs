@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Oracle.ManagedDataAccess.Client;
 using EBS.Models;
 using Microsoft.AspNetCore.Http;
+using System.Text.RegularExpressions;
 
 namespace EBS.Controllers
 {
@@ -19,11 +20,20 @@ namespace EBS.Controllers
         }
 
         // ==========================================
-        // 1. GET: Customer Timeline (Directly from SellerCategory & SeatCategories)
+        // 1. GET: Timeline (Role-Aware Feed)
         // ==========================================
         [HttpGet]
         public async Task<IActionResult> Timeline(string searchString, string locationFilter, int? starFilter)
         {
+            int? sessionUserId = HttpContext.Session.GetInt32("UserId");
+            string userRole = HttpContext.Session.GetString("UserRole") ?? "";
+
+            // সেলার লগইন করলে সরাসরি কাস্টমার রিকোয়েস্টের টাইমলাইনে পাঠাব
+            if (userRole.Equals("SELLER", StringComparison.OrdinalIgnoreCase))
+            {
+                return await SellerTimeline();
+            }
+
             var model = new CommunityFeedViewModel();
             string connString = _configuration.GetConnectionString("OracleDbContext")!;
 
@@ -32,18 +42,18 @@ namespace EBS.Controllers
                 await conn.OpenAsync();
 
                 string venueQuery = @"
-            SELECT sc.SellerCatId, sc.SellerId, u.FullName AS SellerName, sc.ItemName AS VenueTitle, 
-                   sc.ServiceRating,
-                   NVL((
-                       SELECT SUM(fs.SeatCapacity) 
-                       FROM IMTIAZ_SAMIR.ItemFloors f
-                       JOIN IMTIAZ_SAMIR.FloorSections fs ON f.FloorId = fs.FloorId
-                       WHERE f.SellerCatId = sc.SellerCatId
-                   ), 0) AS TotalCapacity,
-                   u.Address AS Location
-            FROM IMTIAZ_SAMIR.SellerCategory sc
-            JOIN IMTIAZ_SAMIR.AppUsers u ON sc.SellerId = u.UserId
-            WHERE u.RoleId = 3";
+                    SELECT sc.SellerCatId, sc.SellerId, u.FullName AS SellerName, sc.ItemName AS VenueTitle, 
+                           sc.ServiceRating,
+                           NVL((
+                               SELECT SUM(fs.SeatCapacity) 
+                               FROM IMTIAZ_SAMIR.ItemFloors f
+                               JOIN IMTIAZ_SAMIR.FloorSections fs ON f.FloorId = fs.FloorId
+                               WHERE f.SellerCatId = sc.SellerCatId
+                           ), 0) AS TotalCapacity,
+                           u.Address AS Location
+                    FROM IMTIAZ_SAMIR.SellerCategory sc
+                    JOIN IMTIAZ_SAMIR.AppUsers u ON sc.SellerId = u.UserId
+                    WHERE u.RoleId = 3";
 
                 // ফিল্টারিং লজিক
                 if (!string.IsNullOrEmpty(searchString))
@@ -99,25 +109,24 @@ namespace EBS.Controllers
                                 Categories = new List<SellerCategoryDetail>()
                             };
 
-                            
-                            var match = System.Text.RegularExpressions.Regex.Match(rawRating, @"\d+");
-                            post.Price = match.Success ? Convert.ToDecimal(match.Value) : 3; 
+                            var match = Regex.Match(rawRating, @"\d+");
+                            post.Price = match.Success ? Convert.ToDecimal(match.Value) : 3;
 
                             model.Posts.Add(post);
                         }
                     }
                 }
 
-                
+                // ভেন্যু সিট ক্যাটাগরি ডিটেইলস
                 foreach (var post in model.Posts)
                 {
                     using (var catCmd = conn.CreateCommand())
                     {
                         catCmd.CommandText = @"
-                    SELECT CategoryName, TotalSeats, PricePerSeat
-                    FROM IMTIAZ_SAMIR.SeatCategories
-                    WHERE SellerCatId = :p_SellerCatId
-                    ORDER BY SeatCatId ASC";
+                            SELECT CategoryName, TotalSeats, PricePerSeat
+                            FROM IMTIAZ_SAMIR.SeatCategories
+                            WHERE SellerCatId = :p_SellerCatId
+                            ORDER BY SeatCatId ASC";
 
                         catCmd.Parameters.Add(new OracleParameter("p_SellerCatId", post.PostId));
 
@@ -137,11 +146,11 @@ namespace EBS.Controllers
                 }
             }
 
-            return View(model);
+            return View("Timeline", model);
         }
 
         // ==========================================
-        // 2. GET: Seller Timeline (Customer Requirements)
+        // 2. GET: Seller Timeline (Customer Requirements Feed)
         // ==========================================
         [HttpGet]
         public async Task<IActionResult> SellerTimeline()
@@ -191,31 +200,33 @@ namespace EBS.Controllers
         }
 
         // ==========================================
-        // 3. POST: User Creates a Requirement Post
+        // 3. POST: User Creates Requirement Post
         // ==========================================
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CreateUserPost(CommunityFeedViewModel model)
         {
             int? sessionUserId = HttpContext.Session.GetInt32("UserId");
-            int userId = sessionUserId.HasValue ? sessionUserId.Value : 6;
-            string userName = HttpContext.Session.GetString("UserName") ?? "Customer";
+            if (sessionUserId == null)
+            {
+                TempData["ErrorMessage"] = "Please log in first to post requirements.";
+                return RedirectToAction("Login", "Account");
+            }
 
+            int userId = sessionUserId.Value;
+            string userName = "Customer";
             string connString = _configuration.GetConnectionString("OracleDbContext")!;
 
             using (var conn = new OracleConnection(connString))
             {
                 await conn.OpenAsync();
 
-                if (userName == "Customer" && userId > 0)
+                string nameQuery = "SELECT FullName FROM IMTIAZ_SAMIR.AppUsers WHERE UserId = :p_Id";
+                using (var nCmd = new OracleCommand(nameQuery, conn))
                 {
-                    string nameQuery = "SELECT FullName FROM IMTIAZ_SAMIR.AppUsers WHERE UserId = :p_Id";
-                    using (var nCmd = new OracleCommand(nameQuery, conn))
-                    {
-                        nCmd.Parameters.Add("p_Id", OracleDbType.Decimal).Value = userId;
-                        var res = await nCmd.ExecuteScalarAsync();
-                        if (res != null && res != DBNull.Value) userName = res.ToString()!;
-                    }
+                    nCmd.Parameters.Add("p_Id", OracleDbType.Decimal).Value = userId;
+                    var res = await nCmd.ExecuteScalarAsync();
+                    if (res != null && res != DBNull.Value) userName = res.ToString()!;
                 }
 
                 using (var cmd = conn.CreateCommand())
@@ -241,7 +252,62 @@ namespace EBS.Controllers
             TempData["SuccessMessage"] = "Your venue requirement post has been published successfully!";
             return RedirectToAction(nameof(Timeline));
         }
-        // POST: Customer/DeleteCommunityPost
+
+        // ==========================================
+        // 4. POST: Seller Submits Proposal/Response to Customer Post
+        // ==========================================
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SubmitPostResponse(decimal postId, string proposalMessage, decimal offerPrice)
+        {
+            int? sellerIdNullable = HttpContext.Session.GetInt32("UserId");
+            if (sellerIdNullable == null) return RedirectToAction("Login", "Account");
+
+            string connString = _configuration.GetConnectionString("OracleDbContext")!;
+            try
+            {
+                using (var conn = new OracleConnection(connString))
+                {
+                    await conn.OpenAsync();
+
+                    string sellerName = "Seller";
+                    string nameQuery = "SELECT FullName FROM IMTIAZ_SAMIR.AppUsers WHERE UserId = :p_Id";
+                    using (var nCmd = new OracleCommand(nameQuery, conn))
+                    {
+                        nCmd.Parameters.Add("p_Id", OracleDbType.Decimal).Value = sellerIdNullable.Value;
+                        var res = await nCmd.ExecuteScalarAsync();
+                        if (res != null && res != DBNull.Value) sellerName = res.ToString()!;
+                    }
+
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = @"
+                            INSERT INTO IMTIAZ_SAMIR.VENUE_COMMUNITY_RESPONSES 
+                            (RESPONSE_ID, POST_ID, SELLER_ID, SELLER_NAME, PROPOSAL_MESSAGE, OFFER_PRICE, STATUS, CREATED_DATE)
+                            VALUES (IMTIAZ_SAMIR.seq_community_responses.NEXTVAL, :postId, :sellerId, :sellerName, :message, :price, 'PENDING', SYSDATE)";
+
+                        cmd.Parameters.Add(new OracleParameter("postId", postId));
+                        cmd.Parameters.Add(new OracleParameter("sellerId", sellerIdNullable.Value));
+                        cmd.Parameters.Add(new OracleParameter("sellerName", sellerName));
+                        cmd.Parameters.Add(new OracleParameter("message", proposalMessage));
+                        cmd.Parameters.Add(new OracleParameter("price", offerPrice));
+
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                }
+                TempData["SuccessMessage"] = "Proposal sent to customer successfully!";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Failed to submit proposal: " + ex.Message;
+            }
+
+            return RedirectToAction(nameof(Timeline));
+        }
+
+        // ==========================================
+        // 5. POST: Customer Deletes Community Post
+        // ==========================================
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteCommunityPost(decimal postId)
@@ -257,7 +323,6 @@ namespace EBS.Controllers
                     await conn.OpenAsync();
                     using (var cmd = conn.CreateCommand())
                     {
-                        // ইউজার শুধুমাত্র নিজের পোস্টই ডিলেট করতে পারবে
                         cmd.CommandText = "DELETE FROM IMTIAZ_SAMIR.VENUE_COMMUNITY_POSTS WHERE POST_ID = :postId AND AUTHOR_ID = :userId";
                         cmd.Parameters.Add(new OracleParameter("postId", postId));
                         cmd.Parameters.Add(new OracleParameter("userId", userIdNullable.Value));
@@ -271,10 +336,12 @@ namespace EBS.Controllers
                 TempData["ErrorMessage"] = "Error deleting post: " + ex.Message;
             }
 
-            return RedirectToAction("MyCommunityPosts");
+            return RedirectToAction("MyCommunityPosts", "Customer");
         }
 
-        // POST: Customer/UpdateResponseStatus (Confirm / Delete Response)
+        // ==========================================
+        // 6. POST: Customer Updates Response Status (Confirm / Delete)
+        // ==========================================
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdateResponseStatus(decimal responseId, string status)
@@ -309,10 +376,10 @@ namespace EBS.Controllers
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = "Error: " + ex.Message;
+                TempData["ErrorMessage"] = "Error updating status: " + ex.Message;
             }
 
-            return RedirectToAction("MyCommunityPosts");
+            return RedirectToAction("MyCommunityPosts", "Customer");
         }
     }
 }

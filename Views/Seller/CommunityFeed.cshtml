@@ -1,55 +1,63 @@
 ﻿@model IEnumerable<EBS.Models.PostItem>
 
 @{
-    ViewData["Title"] = "Community Feed - Seller Panel";
-    Layout = "~/Views/Shared/_SellerLayout.cshtml";
+    ViewData["Title"] = "Seller Community Feed";
+    Layout = "~/Views/Shared/_CustomerLayout.cshtml"; 
 }
 
-<div class="container-fluid px-4 py-3">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="fw-bold text-dark mb-1"><i class="fas id-card text-primary me-2"></i> Customer Requirements Feed</h2>
-            <p class="text-muted mb-0">Browse venue and seating requirements posted by customers.</p>
-        </div>
-    </div>
+<div class="container my-4">
+    <h3 class="mb-4"><i class="fas fa-stream me-2"></i> Customer Venue Requirements Feed</h3>
 
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+    }
     @if (TempData["ErrorMessage"] != null)
     {
-        <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
-            <i class="fas fa-exclamation-triangle me-2"></i> @TempData["ErrorMessage"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
+        <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
     }
 
     <div class="row">
         @if (Model != null && Model.Any())
         {
-            foreach (var post in Model)
+            @foreach (var post in Model)
             {
-                <div class="col-md-6 mb-3">
-                    <div class="card border-0 shadow-sm h-100">
+                <div class="col-md-12 mb-3">
+                    <div class="card shadow-sm border-0">
                         <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span class="badge bg-primary">@post.AuthorName (@post.AuthorRole)</span>
-                                <small class="text-muted"><i class="far fa-clock me-1"></i>@post.CreatedDate.ToString("dd MMM yyyy, hh:mm tt")</small>
-                            </div>
-                            <h5 class="fw-bold text-dark">@post.Title</h5>
-                            <p class="text-muted mb-2">@post.Description</p>
+                            <h5 class="card-title text-primary">@post.Title</h5>
+                            <h6 class="card-subtitle mb-2 text-muted">
+                                By: @post.AuthorName | Location: @post.Location | Capacity: @post.Capacity Seats
+                            </h6>
+                            <p class="card-text">@post.Description</p>
 
-                            <div class="d-flex flex-wrap gap-2 mt-3 small">
-                                @if (post.Budget.HasValue)
-                                {
-                                    <span class="badge bg-success"><i class="fas fa-money-bill-wave me-1"></i>Budget: ৳@post.Budget.Value.ToString("N2")</span>
-                                }
-                                @if (post.Capacity.HasValue)
-                                {
-                                    <span class="badge bg-secondary"><i class="fas fa-users me-1"></i>Capacity: @post.Capacity.Value Seats</span>
-                                }
-                                @if (!string.IsNullOrEmpty(post.Location))
-                                {
-                                    <span class="badge bg-info text-dark"><i class="fas fa-map-marker-alt me-1"></i>@post.Location</span>
-                                }
+                            <div class="mb-3 text-success fw-bold">
+                                Budget: ৳@(post.Budget?.ToString("N0") ?? "Negotiable")
                             </div>
+
+                            <!-- 🔑 রেসপন্স বা প্রোপোজাল পাঠানোর ফর্ম ও বাটন -->
+                            <form asp-controller="Seller" asp-action="SubmitPostResponse" method="post" class="mt-3 p-3 bg-light rounded border">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="postId" value="@post.PostId" />
+
+                                <div class="mb-2">
+                                    <label class="form-label fw-semibold small">Your Proposal / Message</label>
+                                    <textarea name="proposalMessage" class="form-control form-control-sm" rows="2" placeholder="Write your venue offer details..." required></textarea>
+                                </div>
+
+                                <div class="row align-items-center">
+                                    <div class="col-md-4 mb-2 mb-md-0">
+                                        <label class="form-label fw-semibold small">Offer Price (৳)</label>
+                                        <input type="number" name="offerPrice" class="form-control form-control-sm" placeholder="Enter amount" required />
+                                    </div>
+                                    <div class="col-md-8 text-md-end">
+                                        <button type="submit" class="btn btn-primary btn-sm px-4">
+                                            <i class="fas fa-paper-plane me-1"></i> Send Response
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+
                         </div>
                     </div>
                 </div>
@@ -57,9 +65,8 @@
         }
         else
         {
-            <div class="col-12 text-center py-5">
-                <i class="fas fa-comment-slash fa-3x text-secondary mb-3 d-block"></i>
-                <h5 class="fw-bold">No customer requirements found.</h5>
+            <div class="col-12">
+                <div class="alert alert-info text-center">No customer requirements posted yet.</div>
             </div>
         }
     </div>

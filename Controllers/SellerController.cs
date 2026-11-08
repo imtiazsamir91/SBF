@@ -563,7 +563,7 @@ namespace EBS.Controllers
 
             return RedirectToAction(nameof(BookingRequests));
         }
-        
+
         // ==========================================
         // UPDATE SEAT CATEGORY
         // ==========================================
@@ -747,10 +747,11 @@ namespace EBS.Controllers
         }
         // GET: Seller/CommunityFeed
         // GET: Seller/CommunityFeed
+        // GET: Seller/CommunityFeed
         public async Task<IActionResult> CommunityFeed()
         {
             string connString = _configuration.GetConnectionString("OracleDbContext")!;
-            var posts = new List<PostItem>(); // <--- PostItem ব্যবহার করা হয়েছে
+            var posts = new List<PostItem>();
 
             try
             {
@@ -770,7 +771,7 @@ namespace EBS.Controllers
                         {
                             while (await reader.ReadAsync())
                             {
-                                posts.Add(new PostItem // <--- PostItem অবজেক্ট তৈরি করা হচ্ছে
+                                posts.Add(new PostItem
                                 {
                                     PostId = reader.GetDecimal(0),
                                     AuthorId = reader.GetDecimal(1),
@@ -797,5 +798,58 @@ namespace EBS.Controllers
 
             return View(posts);
         }
+
+        // POST: Seller/SubmitPostResponse
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SubmitPostResponse(decimal postId, string proposalMessage, decimal offerPrice)
+        {
+            int? userIdNullable = HttpContext.Session.GetInt32("UserId");
+            if (userIdNullable == null) return RedirectToAction("Login", "Account");
+
+            string connString = _configuration.GetConnectionString("OracleDbContext")!;
+            try
+            {
+                using (var conn = new OracleConnection(connString))
+                {
+                    await conn.OpenAsync();
+
+                    string sellerName = "Seller";
+                    using (var nameCmd = new OracleCommand("SELECT FullName FROM IMTIAZ_SAMIR.AppUsers WHERE UserId = :p_Id", conn))
+                    {
+                        nameCmd.Parameters.Add("p_Id", OracleDbType.Decimal).Value = userIdNullable.Value;
+                        var res = await nameCmd.ExecuteScalarAsync();
+                        if (res != null && res != DBNull.Value) sellerName = res.ToString()!;
+                    }
+
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = @"
+                    INSERT INTO IMTIAZ_SAMIR.VENUE_COMMUNITY_RESPONSES 
+                    (RESPONSE_ID, POST_ID, SELLER_ID, SELLER_NAME, PROPOSAL_MESSAGE, OFFER_PRICE, STATUS, CREATED_DATE)
+                    VALUES (IMTIAZ_SAMIR.seq_community_responses.NEXTVAL, :postId, :sellerId, :sellerName, :message, :price, 'PENDING', SYSDATE)";
+
+                        cmd.Parameters.Add(new OracleParameter("postId", postId));
+                        cmd.Parameters.Add(new OracleParameter("sellerId", userIdNullable.Value));
+                        cmd.Parameters.Add(new OracleParameter("sellerName", sellerName));
+                        cmd.Parameters.Add(new OracleParameter("message", proposalMessage));
+                        cmd.Parameters.Add(new OracleParameter("price", offerPrice));
+
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                }
+                TempData["SuccessMessage"] = "Response submitted successfully!";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Failed to submit response: " + ex.Message;
+            }
+
+            return RedirectToAction("CommunityFeed");
+        }
+
     }
-}
+    }
+
+
+

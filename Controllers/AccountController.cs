@@ -1,10 +1,15 @@
-﻿using System.Data;
+﻿using System;
+using System.Collections.Generic;
+using System.Data;
 using System.Security.Claims;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
-using Oracle.ManagedDataAccess.Client;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Oracle.ManagedDataAccess.Client;
 
 namespace EBS.Controllers
 {
@@ -39,93 +44,57 @@ namespace EBS.Controllers
             string connString = _configuration.GetConnectionString("OracleDbContext")!;
             decimal userId = 0;
             decimal roleId = 0;
-            string roleName = "Customer"; // ডিফল্ট রোল
+            string roleName = "User";
 
             try
             {
                 using (var conn = new OracleConnection(connString))
                 {
                     await conn.OpenAsync();
-                    _logger.LogInformation("🎉 Database Connection Successful! Server Version: {Version}", conn.ServerVersion);
 
-                    // সরাসরি UserId এবং RoleId ফেচ করা (যাতে জয়েন ফেইল না করে)
-                    string query = @"SELECT UserId, RoleId FROM IMTIAZ_SAMIR.AppUsers WHERE Email = :p_Email";
+                    // 🔑 ডাটাবেজ থেকে UserId, RoleId এবং RoleName তুলে আনা
+                    string query = @"
+                        SELECT u.UserId, u.RoleId, NVL(r.RoleName, 'User') AS RoleName
+                        FROM IMTIAZ_SAMIR.AppUsers u
+                        LEFT JOIN IMTIAZ_SAMIR.AppRoles r ON u.RoleId = r.RoleId
+                        WHERE LOWER(TRIM(u.Email)) = LOWER(TRIM(:p_Email))";
 
                     using (var cmd = new OracleCommand(query, conn))
                     {
-                        cmd.Parameters.Add("p_Email", OracleDbType.Varchar2).Value = email;
+                        cmd.Parameters.Add("p_Email", OracleDbType.Varchar2).Value = email.Trim();
 
                         using (var reader = await cmd.ExecuteReaderAsync())
                         {
                             if (await reader.ReadAsync())
                             {
                                 userId = reader.GetDecimal(0);
-                                roleId = reader.IsDBNull(1) ? 0 : reader.GetDecimal(1);
+                                roleId = reader.IsDBNull(1) ? 4 : reader.GetDecimal(1);
+                                roleName = reader.IsDBNull(2) ? "User" : reader.GetString(2);
                             }
                         }
                     }
 
-                    // RoleId এর ওপর ভিত্তি করে সঠিক রোল নেম সেট করা
-                    // (আপনার প্রজেক্টের রোল আইডি অনুযায়ী: যেমন RoleId 2 = Admin, বাকీগুলো Customer/Seller)
-                    if (roleId == 2)
-                    {
-                        roleName = "Admin";
-                    }
-                    else if (roleId == 3 || roleId == 4)
-                    {
-                        roleName = "Customer"; // আপনার ইউজার ইমেইলের জন্য কাস্টমার হিসেবে সেট করা হলো
-                    }
-                    else
-                    {
-                        roleName = "Customer";
-                    }
-
-                    // যদি ইউজার ডাটাবেজে না পাওয়া যায়
+                    // ইউজার ডাটাবেজে না থাকলে
                     if (userId == 0)
                     {
-                        if (email.ToLower().Contains("admin"))
-                        {
-                            roleName = "Admin";
-                            decimal adminRoleId = 2;
-
-                            string insertQuery = @"INSERT INTO IMTIAZ_SAMIR.AppUsers (UserId, FullName, Email, PasswordHash, RoleId) 
-                                                   VALUES (IMTIAZ_SAMIR.seq_users.NEXTVAL, 'System Admin', :p_Email, 'hashed_pwd', :p_RoleId)";
-
-                            using (var insertCmd = new OracleCommand(insertQuery, conn))
-                            {
-                                insertCmd.Parameters.Add("p_Email", OracleDbType.Varchar2).Value = email;
-                                insertCmd.Parameters.Add("p_RoleId", OracleDbType.Decimal).Value = adminRoleId;
-                                await insertCmd.ExecuteNonQueryAsync();
-                            }
-
-                            using (var idCmd = new OracleCommand("SELECT UserId FROM IMTIAZ_SAMIR.AppUsers WHERE Email = :p_Email", conn))
-                            {
-                                idCmd.Parameters.Add("p_Email", OracleDbType.Varchar2).Value = email;
-                                var idRes = await idCmd.ExecuteScalarAsync();
-                                if (idRes != null) userId = Convert.ToDecimal(idRes);
-                            }
-                        }
-                        else
-                        {
-                            ModelState.AddModelError(string.Empty, "Invalid email or user not found.");
-                            return View();
-                        }
+                        ModelState.AddModelError(string.Empty, "Invalid email or user not found.");
+                        return View();
                     }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError("❌ Database Connection or Query Failed: {Message}", ex.Message);
+                _logger.LogError("Database Error: {Message}", ex.Message);
                 ModelState.AddModelError(string.Empty, "Database Error: " + ex.Message);
                 return View();
             }
 
-            // 🔑 সেশনে আইডি এবং রোল স্ট্যান্ডার্ড ফরম্যাটে সেভ করা
+            // 🔑 সেশনে তথ্য সেভ করা
             string normalizedRole = roleName.Trim();
             HttpContext.Session.SetInt32("UserId", Convert.ToInt32(userId));
-            HttpContext.Session.SetString("UserRole", normalizedRole.ToUpper()); // "CUSTOMER", "SELLER", "ADMIN"
+            HttpContext.Session.SetString("UserRole", normalizedRole.ToUpper()); // "ADMIN", "SELLER", "USER"
 
-            // Cookie Authentication Claims সেট করা
+            // Cookie Claims সেটিং
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.Name, email),
@@ -142,23 +111,23 @@ namespace EBS.Controllers
                 authProperties
             );
 
-            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
-            {
-                return Redirect(returnUrl);
-            }
-
-            // 🎯 রোল অনুযায়ী সরাসরি সঠিক ড্যাশবোর্ডে বা পেজে রিডাইরেক্ট করা
-            if (normalizedRole.Equals("Admin", StringComparison.OrdinalIgnoreCase))
+            // 🎯 রোল অনুযায়ী নিখুঁত রিডাইরেক্ট লজিক
+            if (roleId == 2 || normalizedRole.Equals("Admin", StringComparison.OrdinalIgnoreCase))
             {
                 return RedirectToAction("Dashboard", "Admin");
             }
-            else if (normalizedRole.Equals("Seller", StringComparison.OrdinalIgnoreCase))
+            else if (roleId == 3 || normalizedRole.Equals("Seller", StringComparison.OrdinalIgnoreCase))
             {
+                // 🔑 Seller (RoleId = 3) সরাসরি সেলারের কাস্টমার রিকোয়েস্ট ফিডে পাঠাবে
                 return RedirectToAction("CommunityFeed", "Seller");
             }
             else
             {
-                // কাস্টমার হলে সরাসরি MyVenueRequests পেজে যাবে
+                // 🔑 User / Customer (RoleId = 4)
+                if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+                {
+                    return Redirect(returnUrl);
+                }
                 return RedirectToAction("MyVenueRequests", "Customer");
             }
         }
