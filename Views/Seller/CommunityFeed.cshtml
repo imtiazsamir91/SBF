@@ -2,7 +2,7 @@
 
 @{
     ViewData["Title"] = "Seller Community Feed";
-    Layout = "~/Views/Shared/_CustomerLayout.cshtml"; 
+    Layout = "~/Views/Shared/_SellerLayout.cshtml";
 }
 
 <div class="container my-4">
@@ -35,7 +35,7 @@
                                 Budget: ৳@(post.Budget?.ToString("N0") ?? "Negotiable")
                             </div>
 
-                            <!-- 🔑 রেসপন্স বা প্রোপোজাল পাঠানোর ফর্ম ও বাটন -->
+                           
                             <form asp-controller="Seller" asp-action="SubmitPostResponse" method="post" class="mt-3 p-3 bg-light rounded border">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="postId" value="@post.PostId" />

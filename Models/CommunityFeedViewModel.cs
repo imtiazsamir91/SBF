@@ -26,6 +26,22 @@ namespace EBS.Models
 
         // সেলারের সিট ক্যাটাগরি লিস্ট (VIP, Regular, Business)
         public List<SellerCategoryDetail> Categories { get; set; } = new List<SellerCategoryDetail>();
+
+        // 🔑 নতুন যুক্ত করা হলো: কাস্টমার পোস্টে সেলারদের পাঠানো প্রোপোজাল বা রেসপন্স লিস্ট
+        public List<PostResponseItem> Responses { get; set; } = new List<PostResponseItem>();
+    }
+
+    // 🔑 নতুন যুক্ত করা হলো: সেলার রেসপন্স বা প্রোপোজালের মডেল
+    public class PostResponseItem
+    {
+        public decimal ResponseId { get; set; }
+        public decimal PostId { get; set; }
+        public decimal SellerId { get; set; }
+        public string SellerName { get; set; } = string.Empty;
+        public string ProposalMessage { get; set; } = string.Empty;
+        public decimal OfferPrice { get; set; }
+        public string Status { get; set; } = "PENDING";
+        public DateTime CreatedDate { get; set; }
     }
 
     public class SellerCategoryDetail

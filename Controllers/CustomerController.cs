@@ -219,16 +219,19 @@ namespace EBS.Controllers
                 using (var conn = new OracleConnection(connString))
                 {
                     await conn.OpenAsync();
+
+                    // ১. কাস্টমারের নিজের সব পোস্ট লোড করা
                     using (var cmd = conn.CreateCommand())
                     {
+                        cmd.BindByName = true;
                         cmd.CommandText = @"
-                            SELECT POST_ID, AUTHOR_ID, AUTHOR_NAME, AUTHOR_ROLE, POST_TYPE, 
-                                   TITLE, DESCRIPTION, BUDGET, PRICE, CAPACITY, LOCATION, CREATED_DATE
-                            FROM IMTIAZ_SAMIR.VENUE_COMMUNITY_POSTS
-                            WHERE AUTHOR_ID = :userId
-                            ORDER BY CREATED_DATE DESC";
+                    SELECT POST_ID, AUTHOR_ID, AUTHOR_NAME, AUTHOR_ROLE, POST_TYPE, 
+                           TITLE, DESCRIPTION, BUDGET, PRICE, CAPACITY, LOCATION, CREATED_DATE
+                    FROM IMTIAZ_SAMIR.VENUE_COMMUNITY_POSTS
+                    WHERE AUTHOR_ID = :userId
+                    ORDER BY CREATED_DATE DESC";
 
-                        cmd.Parameters.Add(new OracleParameter("userId", userId));
+                        cmd.Parameters.Add(new OracleParameter("userId", OracleDbType.Decimal)).Value = userId;
 
                         using (var reader = await cmd.ExecuteReaderAsync())
                         {
@@ -243,12 +246,47 @@ namespace EBS.Controllers
                                     PostType = reader.GetString(4),
                                     Title = reader.GetString(5),
                                     Description = reader.IsDBNull(6) ? "" : reader.GetString(6),
-                                    Budget = reader.IsDBNull(7) ? null : reader.GetDecimal(7),
-                                    Price = reader.IsDBNull(8) ? null : reader.GetDecimal(8),
-                                    Capacity = reader.IsDBNull(9) ? null : Convert.ToInt32(reader.GetDecimal(9)),
+                                    Budget = reader.IsDBNull(7) ? (decimal?)null : reader.GetDecimal(7),
+                                    Price = reader.IsDBNull(8) ? (decimal?)null : reader.GetDecimal(8),
+                                    Capacity = reader.IsDBNull(9) ? (int?)null : Convert.ToInt32(reader.GetDecimal(9)),
                                     Location = reader.IsDBNull(10) ? "" : reader.GetString(10),
-                                    CreatedDate = reader.GetDateTime(11)
+                                    CreatedDate = reader.GetDateTime(11),
+                                    Responses = new List<PostResponseItem>() // 🔑 রেসপন্স লিস্ট ইনিশিয়ালাইজ করা
                                 });
+                            }
+                        }
+                    }
+
+                    // ২. প্রতিটি পোস্টের জন্য সেলারদের পাঠানো রেসপন্স/প্রোপোজাল তুলে আনা
+                    foreach (var post in myPosts)
+                    {
+                        using (var respCmd = conn.CreateCommand())
+                        {
+                            respCmd.BindByName = true;
+                            respCmd.CommandText = @"
+                        SELECT RESPONSE_ID, POST_ID, SELLER_ID, SELLER_NAME, PROPOSAL_MESSAGE, OFFER_PRICE, STATUS, CREATED_DATE
+                        FROM IMTIAZ_SAMIR.VENUE_COMMUNITY_RESPONSES
+                        WHERE POST_ID = :p_PostId
+                        ORDER BY CREATED_DATE DESC";
+
+                            respCmd.Parameters.Add(new OracleParameter("p_PostId", OracleDbType.Decimal)).Value = post.PostId;
+
+                            using (var respReader = await respCmd.ExecuteReaderAsync())
+                            {
+                                while (await respReader.ReadAsync())
+                                {
+                                    post.Responses.Add(new PostResponseItem
+                                    {
+                                        ResponseId = respReader.GetDecimal(0),
+                                        PostId = respReader.GetDecimal(1),
+                                        SellerId = respReader.GetDecimal(2),
+                                        SellerName = respReader.GetString(3),
+                                        ProposalMessage = respReader.IsDBNull(4) ? "" : respReader.GetString(4),
+                                        OfferPrice = respReader.GetDecimal(5),
+                                        Status = respReader.IsDBNull(6) ? "PENDING" : respReader.GetString(6),
+                                        CreatedDate = respReader.GetDateTime(7)
+                                    });
+                                }
                             }
                         }
                     }

@@ -1,172 +1,102 @@
-﻿@model EBS.Models.SellerDashboardViewModel
+﻿@model IEnumerable<EBS.Models.PostItem>
 
 @{
-    ViewData["Title"] = "Seller Dashboard";
+    ViewData["Title"] = "Seller Community Feed";
     Layout = "~/Views/Shared/_SellerLayout.cshtml";
 }
 
-<!-- Welcome Banner -->
-<div class="card bg-white border-0 shadow-sm rounded-3 mb-4">
-    <div class="card-body p-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
-        <div>
-            <h3 class="fw-bold text-dark mb-1"><i class="fas fa-store text-success me-2"></i> @Model.ItemName</h3>
-            <p class="text-muted mb-0">
-                Managed by <strong>@Model.SellerName</strong> | Category: <span class="badge bg-secondary">@Model.CategoryName</span>
-            </p>
-        </div>
-        <div>
-            <a href="#" class="btn btn-success fw-bold px-4 shadow-sm">
-                <i class="fas fa-plus-circle me-1"></i> Manage Seat Categories
-            </a>
-        </div>
-    </div>
-</div>
-
-<!-- TOP STATS CARDS -->
-<div class="row g-3 mb-4">
-    <div class="col-xl-3 col-md-6">
-        <div class="card stat-card bg-white shadow-sm p-3">
-            <div class="d-flex align-items-center justify-content-between">
-                <div>
-                    <span class="text-muted small fw-bold">TOTAL CAPACITY SEATS</span>
-                    <h2 class="fw-bold text-dark mb-0 mt-1">@Model.TotalCapacitySeats</h2>
-                    <small class="text-muted"><i class="fas fa-layer-group me-1"></i> From @Model.TotalFloors Floors</small>
-                </div>
-                <div class="stat-icon bg-primary-subtle text-primary">
-                    <i class="fas fa-couch"></i>
-                </div>
+<div class="container-fluid py-4">
+    <!-- Header Banner -->
+    <div class="card bg-white border-0 shadow-sm rounded-3 mb-4">
+        <div class="card-body p-4 d-flex justify-content-between align-items-center">
+            <div>
+                <h3 class="fw-bold text-dark mb-1"><i class="fas fa-stream text-success me-2"></i> Customer Venue Requirements Feed</h3>
+                <p class="text-muted mb-0">Browse requirements posted by customers and submit your custom proposals.</p>
             </div>
         </div>
     </div>
 
-    <div class="col-xl-3 col-md-6">
-        <div class="card stat-card bg-white shadow-sm p-3">
-            <div class="d-flex align-items-center justify-content-between">
-                <div>
-                    <span class="text-muted small fw-bold">ALLOCATED SEATS</span>
-                    <h2 class="fw-bold text-success mb-0 mt-1">@Model.AllocatedCategorySeats</h2>
-                    <small class="text-success fw-semibold"><i class="fas fa-list me-1"></i> @Model.TotalCategoriesCount Categories</small>
-                </div>
-                <div class="stat-icon bg-success-subtle text-success">
-                    <i class="fas fa-check-circle"></i>
-                </div>
-            </div>
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
+            <i class="fas fa-check-circle me-1"></i> @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
-    </div>
+    }
 
-    <div class="col-xl-3 col-md-6">
-        <div class="card stat-card bg-white shadow-sm p-3">
-            <div class="d-flex align-items-center justify-content-between">
-                <div>
-                    <span class="text-muted small fw-bold">UNALLOCATED SEATS</span>
-                    <h2 class="fw-bold text-warning mb-0 mt-1">@Model.RemainingUnallocatedSeats</h2>
-                    <small class="text-muted">Available for VIP/Regular</small>
-                </div>
-                <div class="stat-icon bg-warning-subtle text-warning">
-                    <i class="fas fa-hourglass-half"></i>
-                </div>
-            </div>
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+            <i class="fas fa-exclamation-circle me-1"></i> @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
-    </div>
+    }
 
-    <div class="col-xl-3 col-md-6">
-        <div class="card stat-card bg-white shadow-sm p-3">
-            <div class="d-flex align-items-center justify-content-between">
-                <div>
-                    <span class="text-muted small fw-bold">PENDING REQUESTS</span>
-                    <h2 class="fw-bold text-danger mb-0 mt-1">@Model.PendingBookingRequests</h2>
-                    <small class="text-danger fw-semibold">Action Required</small>
-                </div>
-                <div class="stat-icon bg-danger-subtle text-danger">
-                    <i class="fas fa-bell"></i>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+    <!-- Posts List -->
+    <div class="row g-4">
+        @if (Model != null && Model.Any())
+        {
+            @foreach (var post in Model)
+            {
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm rounded-4 p-3 bg-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <span class="badge bg-primary mb-2">@post.PostType</span>
+                                    <h4 class="fw-bold text-dark mb-1">@post.Title</h4>
+                                    <small class="text-muted">Posted by <strong>@post.AuthorName</strong> on @post.CreatedDate.ToString("dd MMM yyyy, hh:mm tt")</small>
+                                </div>
+                            </div>
 
-<!-- BREAKDOWN & QUICK ACTIONS -->
-<div class="row g-4">
-    <!-- Category Breakdown Table -->
-    <div class="col-lg-8">
-        <div class="card border-0 shadow-sm rounded-3">
-            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom-0">
-                <h5 class="fw-bold m-0 text-dark"><i class="fas fa-list-ol text-success me-2"></i> Seat Category Breakdown</h5>
-                <span class="badge bg-light text-dark border"><i class="fas fa-info-circle me-1"></i> Default: Regular</span>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Category Name</th>
-                                <th>Price / Seat</th>
-                                <th>Allocated Seats</th>
-                                <th>Share (%)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @if (Model.SeatCategories != null && Model.SeatCategories.Any())
-                            {
-                                foreach (var cat in Model.SeatCategories)
-                                {
-                                    double percent = Model.TotalCapacitySeats > 0 ? ((double)cat.TotalSeats / Model.TotalCapacitySeats) * 100 : 0;
-                                    <tr>
-                                        <td class="fw-bold text-dark">
-                                            @cat.CategoryName
-                                            @if (cat.CategoryName.Equals("Regular", StringComparison.OrdinalIgnoreCase))
-                                            {
-                                                <span class="badge bg-secondary ms-1">Default</span>
-                                            }
-                                        </td>
-                                        <td class="text-success fw-bold">৳@cat.PricePerSeat</td>
-                                        <td><span class="badge bg-info text-dark fs-6">@cat.TotalSeats Seats</span></td>
-                                        <td style="width: 30%;">
-                                            <div class="d-flex align-items-center gap-2">
-                                                <div class="progress flex-grow-1" style="height: 8px;">
-                                                    <div class="progress-bar bg-success" style="width: @percent%"></div>
-                                                </div>
-                                                <small class="text-muted fw-semibold">@percent.ToString("0")%</small>
+                            <p class="text-muted mt-3 mb-3">@post.Description</p>
+
+                            <div class="d-flex gap-4 text-secondary small bg-light p-3 rounded-3 mb-4">
+                                <div><i class="fas fa-coins text-warning me-1"></i> <strong>Budget:</strong> @(post.Budget.HasValue? post.Budget.Value.ToString("N0") + " ৳" : "Negotiable")</div>
+                                <div><i class="fas fa-users text-info me-1"></i> <strong>Capacity:</strong> @(post.Capacity.HasValue? post.Capacity.Value.ToString() : "N/A") Seats</div>
+                                <div><i class="fas fa-map-marker-alt text-danger me-1"></i> <strong>Location:</strong> @post.Location</div>
+                            </div>
+
+                            <!-- Submit Response Form for Seller -->
+                            <div class="card border border-success-subtle bg-light rounded-3 p-3">
+                                <h6 class="fw-bold text-success mb-3"><i class="fas fa-paper-plane me-1"></i> Submit Your Proposal / Offer</h6>
+
+                                <form asp-controller="Seller" asp-action="SubmitPostResponse" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="postId" value="@post.PostId" />
+
+                                    <div class="row g-3">
+                                        <div class="col-md-8">
+                                            <label class="form-label small fw-semibold">Proposal Message / Details</label>
+                                            <textarea name="proposalMessage" class="form-control form-control-sm" rows="2" placeholder="Write your offer details, amenities, or discounts..." required></textarea>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label small fw-semibold">Offer Price (৳)</label>
+                                            <div class="input-group input-group-sm mb-2">
+                                                <span class="input-group-text">৳</span>
+                                                <input type="number" name="offerPrice" class="form-control" placeholder="Enter amount" required />
                                             </div>
-                                        </td>
-                                    </tr>
-                                }
-                            }
-                            else
-                            {
-                                <tr>
-                                    <td colspan="4" class="text-center py-5 text-muted">
-                                        <i class="fas fa-chair fa-2x mb-2 text-secondary"></i>
-                                        <p class="mb-0">No seat categories configured yet.</p>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
+                                            <button type="submit" class="btn btn-success btn-sm w-100 fw-semibold">
+                                                <i class="fas fa-paper-plane me-1"></i> Send Proposal
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
 
-    <!-- Right Quick Actions -->
-    <div class="col-lg-4">
-        <div class="card border-0 shadow-sm rounded-3">
-            <div class="card-header bg-white py-3 border-bottom-0">
-                <h5 class="fw-bold m-0 text-dark"><i class="fas fa-rocket text-warning me-2"></i> Quick Management</h5>
-            </div>
-            <div class="card-body">
-                <div class="d-grid gap-3">
-                    <a href="#" class="btn btn-outline-success text-start fw-semibold py-2 shadow-sm">
-                        <i class="fas fa-plus-circle me-2"></i> Configure VIP/Business Seats
-                    </a>
-                    <a href="#" class="btn btn-outline-primary text-start fw-semibold py-2 shadow-sm">
-                        <i class="fas fa-layer-group me-2"></i> View Floor Breakdown
-                    </a>
-                    <button class="btn btn-outline-danger text-start fw-semibold py-2 shadow-sm" disabled>
-                        <i class="fas fa-tasks me-2"></i> Pending Booking Requests
-                    </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="col-12">
+                <div class="card border-0 shadow-sm p-5 text-center rounded-4">
+                    <i class="fas fa-folder-open fa-3x text-secondary mb-3"></i>
+                    <p class="text-muted mb-0">No customer requirements available in the community feed right now.</p>
                 </div>
             </div>
-        </div>
+        }
     </div>
 </div>

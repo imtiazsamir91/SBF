@@ -17,7 +17,15 @@
         </div>
     }
 
-    @if (!Model.Any())
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+            <i class="fas fa-exclamation-circle me-1"></i> @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (Model == null || !Model.Any())
     {
         <div class="card border-0 shadow-sm p-4 text-center rounded-4">
             <p class="text-muted mb-0">You haven't posted any community requests yet.</p>
@@ -40,7 +48,8 @@
 
                                 <!-- Delete Action -->
                                 <div>
-                                    <form asp-action="DeleteCommunityPost" method="post" onsubmit="return confirm('Are you sure you want to delete this post?');">
+                                    <form asp-controller="Community" asp-action="DeleteCommunityPost" method="post" onsubmit="return confirm('Are you sure you want to delete this post?');">
+                                        @Html.AntiForgeryToken()
                                         <input type="hidden" name="postId" value="@item.PostId" />
                                         <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill">
                                             <i class="fas fa-trash me-1"></i> Delete Post
@@ -51,44 +60,69 @@
 
                             <p class="text-muted mt-3 mb-3">@item.Description</p>
 
-                            <div class="d-flex gap-4 text-secondary small bg-light p-3 rounded-3">
-                                <div><i class="fas fa-coins text-warning me-1"></i> <strong>Budget:</strong> @(item.Budget.HasValue? item.Budget.Value.ToString("C") : "N/A")</div>
+                            <div class="d-flex gap-4 text-secondary small bg-light p-3 rounded-3 mb-3">
+                                <div><i class="fas fa-coins text-warning me-1"></i> <strong>Budget:</strong> @(item.Budget.HasValue? item.Budget.Value.ToString("N0") + " ৳" : "N/A")</div>
                                 <div><i class="fas fa-users text-info me-1"></i> <strong>Capacity:</strong> @(item.Capacity.HasValue? item.Capacity.Value.ToString() : "N/A")</div>
                                 <div><i class="fas fa-map-marker-alt text-danger me-1"></i> <strong>Location:</strong> @item.Location</div>
                             </div>
 
-                            <!-- Section for Seller Responses -->
-                            <div class="mt-4 border-top pt-3">
-                                <h6 class="fw-bold text-dark mb-3"><i class="fas fa-reply-all me-2 text-primary"></i> Seller Responses & Proposals</h6>
+                            <!-- 🔑 ডাইনামিক সেলার রেসপন্স সেকশন -->
+                            <div class="border-top pt-3">
+                                <h6 class="fw-bold text-dark mb-3">
+                                    <i class="fas fa-reply-all me-2 text-primary"></i> Seller Responses & Proposals (@(item.Responses?.Count ?? 0))
+                                </h6>
 
-                                <!-- Example Loop for Seller Proposals -->
-                                <div class="bg-light p-3 rounded-3 mb-2 d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <h6 class="fw-bold mb-1 text-dark"><i class="fas fa-store text-success me-1"></i> Sample Seller Name</h6>
-                                        <p class="mb-1 small text-muted">"We can host your event with full catering within your budget."</p>
-                                        <span class="badge bg-success">Offered: $500</span>
+                                @if (item.Responses != null && item.Responses.Any())
+                                {
+                                    @foreach (var resp in item.Responses)
+                                    {
+                                        <div class="bg-light p-3 rounded-3 mb-2 d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <h6 class="fw-bold mb-1 text-dark">
+                                                    <i class="fas fa-store text-success me-1"></i> @resp.SellerName
+                                                    @if (resp.Status == "CONFIRMED")
+                                                    {
+                                                        <span class="badge bg-success ms-2">CONFIRMED</span>
+                                                    }
+                                                </h6>
+                                                <p class="mb-1 small text-muted">"@resp.ProposalMessage"</p>
+                                                <span class="badge bg-primary">Offered: @resp.OfferPrice.ToString("N0") ৳</span>
+                                                <small class="text-secondary ms-2">(@resp.CreatedDate.ToString("dd MMM yyyy, hh:mm tt"))</small>
+                                            </div>
+
+                                            <div class="d-flex gap-2">
+                                                @if (resp.Status != "CONFIRMED")
+                                                {
+                                                    <!-- Confirm Button -->
+                                                    <form asp-controller="Community" asp-action="UpdateResponseStatus" method="post">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="responseId" value="@resp.ResponseId" />
+                                                        <input type="hidden" name="status" value="CONFIRMED" />
+                                                        <button type="submit" class="btn btn-sm btn-success rounded-pill fw-semibold">
+                                                            <i class="fas fa-check me-1"></i> Confirm
+                                                        </button>
+                                                    </form>
+
+                                                    <!-- Reject/Delete Button -->
+                                                    <form asp-controller="Community" asp-action="UpdateResponseStatus" method="post">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="responseId" value="@resp.ResponseId" />
+                                                        <input type="hidden" name="status" value="DELETE" />
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill">
+                                                            <i class="fas fa-times me-1"></i> Reject
+                                                        </button>
+                                                    </form>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="p-3 bg-light rounded-3 text-muted small">
+                                        No seller responses received yet.
                                     </div>
-
-                                    <div class="d-flex gap-2">
-                                        <!-- Confirm Button -->
-                                        <form asp-action="UpdateResponseStatus" method="post">
-                                            <input type="hidden" name="responseId" value="1" />
-                                            <input type="hidden" name="status" value="CONFIRMED" />
-                                            <button type="submit" class="btn btn-sm btn-success rounded-pill fw-semibold">
-                                                <i class="fas fa-check me-1"></i> Confirm
-                                            </button>
-                                        </form>
-
-                                        <!-- Reject/Delete Button -->
-                                        <form asp-action="UpdateResponseStatus" method="post">
-                                            <input type="hidden" name="responseId" value="1" />
-                                            <input type="hidden" name="status" value="DELETE" />
-                                            <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill">
-                                                <i class="fas fa-times me-1"></i> Reject
-                                            </button>
-                                        </form>
-                                    </div>
-                                </div>
+                                }
                             </div>
 
                         </div>

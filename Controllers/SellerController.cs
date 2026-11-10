@@ -20,6 +20,21 @@ namespace EBS.Controllers
         {
             return HttpContext.Session.GetInt32("UserId") ?? 1;
         }
+        //
+        [HttpGet]
+        public IActionResult Index()
+        {
+            int? userIdNullable = HttpContext.Session.GetInt32("UserId");
+            int? roleIdNullable = HttpContext.Session.GetInt32("RoleId");
+
+            if (userIdNullable == null || roleIdNullable != 3)
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+           
+            return RedirectToAction(nameof(CommunityFeed));
+        }
 
         // ==========================================
         // 1. SELLER DASHBOARD
@@ -748,8 +763,17 @@ namespace EBS.Controllers
         // GET: Seller/CommunityFeed
         // GET: Seller/CommunityFeed
         // GET: Seller/CommunityFeed
+        // GET: Seller/CommunityFeed
         public async Task<IActionResult> CommunityFeed()
         {
+            int? userIdNullable = HttpContext.Session.GetInt32("UserId");
+            int? roleIdNullable = HttpContext.Session.GetInt32("RoleId");
+
+            if (userIdNullable == null || roleIdNullable != 3)
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
             string connString = _configuration.GetConnectionString("OracleDbContext")!;
             var posts = new List<PostItem>();
 
@@ -761,11 +785,11 @@ namespace EBS.Controllers
                     using (var cmd = conn.CreateCommand())
                     {
                         cmd.CommandText = @"
-                    SELECT POST_ID, AUTHOR_ID, AUTHOR_NAME, AUTHOR_ROLE, POST_TYPE, 
-                           TITLE, DESCRIPTION, BUDGET, PRICE, CAPACITY, LOCATION, CREATED_DATE
-                    FROM IMTIAZ_SAMIR.VENUE_COMMUNITY_POSTS
-                    WHERE POST_TYPE = 'USER_REQUIREMENT'
-                    ORDER BY CREATED_DATE DESC";
+                        SELECT POST_ID, AUTHOR_ID, AUTHOR_NAME, AUTHOR_ROLE, POST_TYPE, 
+                               TITLE, DESCRIPTION, BUDGET, PRICE, CAPACITY, LOCATION, CREATED_DATE
+                        FROM IMTIAZ_SAMIR.VENUE_COMMUNITY_POSTS
+                        WHERE POST_TYPE = 'USER_REQUIREMENT'
+                        ORDER BY CREATED_DATE DESC";
 
                         using (var reader = await cmd.ExecuteReaderAsync())
                         {
@@ -780,9 +804,9 @@ namespace EBS.Controllers
                                     PostType = reader.GetString(4),
                                     Title = reader.GetString(5),
                                     Description = reader.IsDBNull(6) ? "" : reader.GetString(6),
-                                    Budget = reader.IsDBNull(7) ? null : reader.GetDecimal(7),
-                                    Price = reader.IsDBNull(8) ? null : reader.GetDecimal(8),
-                                    Capacity = reader.IsDBNull(9) ? null : Convert.ToInt32(reader.GetDecimal(9)),
+                                    Budget = reader.IsDBNull(7) ? (decimal?)null : reader.GetDecimal(7),
+                                    Price = reader.IsDBNull(8) ? (decimal?)null : reader.GetDecimal(8),
+                                    Capacity = reader.IsDBNull(9) ? (int?)null : Convert.ToInt32(reader.GetDecimal(9)),
                                     Location = reader.IsDBNull(10) ? "" : reader.GetString(10),
                                     CreatedDate = reader.GetDateTime(11)
                                 });
